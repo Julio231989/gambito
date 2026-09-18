@@ -1,0 +1,2755 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GAMBITO // GOAL HUNTER — Consola</title>
+
+<!-- PWA: manifest, íconos, colores -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#14b8a6">
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gambito">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:oklch(0.15 0.014 240); --panel:oklch(0.195 0.016 238); --panel-2:oklch(0.23 0.018 236); --line:oklch(0.33 0.02 234);
+    --teal:oklch(0.72 0.11 174); --teal-bright:oklch(0.82 0.13 174); --amber:oklch(0.78 0.14 68); --red:oklch(0.66 0.19 24); --green:oklch(0.73 0.15 148);
+    --purple:oklch(0.76 0.11 300); --blue:oklch(0.75 0.09 232);
+    --text:oklch(0.94 0.006 240); --text-dim:oklch(0.71 0.014 235); --text-mute:oklch(0.53 0.016 235);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{color-scheme:dark;}
+  body{
+    background:
+      radial-gradient(circle at 12% -8%, oklch(0.22 0.05 175 / 35%) 0%, transparent 42%),
+      radial-gradient(circle at 92% 0%, oklch(0.22 0.03 232 / 30%) 0%, transparent 38%),
+      var(--bg);
+    color:var(--text); font-family:'IBM Plex Mono', monospace;
+    min-height:100vh; padding:20px; font-size:13px; line-height:1.5;
+  }
+  h1,h2,h3,.display{font-family:'Space Grotesk', sans-serif;}
+  ::selection{background:var(--teal); color:oklch(0.16 0.02 174);}
+  header{display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid var(--line); padding-bottom:16px; margin-bottom:18px; flex-wrap:wrap; gap:14px;}
+  .brand{display:flex; flex-direction:column; gap:4px;}
+  .brand .tag{color:var(--teal); font-size:10px; letter-spacing:.2em; text-transform:uppercase; font-weight:600;}
+  .brand h1{font-size:22px; font-weight:700; letter-spacing:-.01em;}
+  .brand h1 span{color:var(--teal);}
+  .status-strip{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{border:1px solid var(--line); background:var(--panel); padding:7px 12px; border-radius:7px; font-size:11px; color:var(--text-dim); display:flex; flex-direction:column; align-items:flex-end; min-width:90px; transition:border-color .15s;}
+  .chip b{font-family:'Space Grotesk',sans-serif; font-size:15px; color:var(--text); font-weight:600;}
+  .chip.warn b{color:var(--amber);}
+  .chip.danger{border-color:var(--red);} .chip.danger b{color:var(--red);}
+  .chip.ok b{color:var(--green);}
+  #stoplossBanner{display:none; background:oklch(0.22 0.08 24 / 55%); border:1px solid var(--red); color:oklch(0.90 0.05 20); padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:12px; box-shadow:0 4px 16px oklch(0 0 0 / 25%);}
+  #stoplossBanner.info{background:oklch(0.22 0.06 174 / 45%); border-color:var(--teal); color:oklch(0.90 0.05 174);}
+  #stoplossBanner b{color:inherit;}
+  nav.tabs{display:flex; gap:2px; margin-bottom:20px; border-bottom:1px solid var(--line); flex-wrap:wrap;}
+  nav.tabs button{background:none; border:none; color:var(--text-mute); font-family:'Space Grotesk',sans-serif; font-size:12px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; padding:10px 14px; cursor:pointer; border-radius:6px 6px 0 0; border-bottom:2px solid transparent; transition:.15s;}
+  nav.tabs button:hover{color:var(--text); background:oklch(1 0 0 / 4%);}
+  nav.tabs button.active{color:var(--teal); border-bottom-color:var(--teal); background:oklch(1 0 0 / 5%);}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:22px; margin-bottom:18px; box-shadow:0 1px 0 oklch(1 0 0 / 4%) inset;}
+  .panel h2{font-size:16px; margin-bottom:14px; color:var(--text); letter-spacing:.01em;}
+  .panel h2 .n{color:var(--teal); margin-right:8px; font-size:12px; opacity:.75;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:16px;}
+  .rule-card{border-left:2px solid var(--teal); background:var(--panel-2); padding:14px 16px; border-radius:0 8px 8px 0; margin-bottom:12px;}
+  .rule-card h3{font-size:12px; color:var(--teal); text-transform:uppercase; letter-spacing:.07em; margin-bottom:8px; font-weight:600;}
+  .rule-card ol,.rule-card ul{padding-left:18px; color:var(--text-dim); line-height:1.75; font-size:12.5px;}
+  .rule-card p{color:var(--text-dim); font-size:12.5px; line-height:1.65;}
+  .rule-card.discard{border-left-color:var(--red);} .rule-card.discard h3{color:var(--red);}
+  .rule-card.limits{border-left-color:var(--amber);} .rule-card.limits h3{color:var(--amber);}
+  .rule-card table{margin-top:10px;}
+  .rule-card th{background:oklch(0.16 0.014 240);}
+  label{display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-mute); margin-bottom:5px; margin-top:12px; font-weight:600;}
+  label:has(+ input[required]), label:has(+ select[required]), label:has(+ textarea[required]){ color:var(--amber); }
+  label:has(+ input[required])::after, label:has(+ select[required])::after, label:has(+ textarea[required])::after{ content:" *"; }
+  input,select,textarea{width:100%; background:oklch(0.13 0.012 240); border:1px solid var(--line); color:var(--text); padding:9px 10px; border-radius:6px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; transition:border-color .15s, box-shadow .15s;}
+  input:focus,select:focus,textarea:focus{outline:none; border-color:var(--teal); box-shadow:0 0 0 3px oklch(0.72 0.11 174 / 18%);}
+  input[type=checkbox]{width:auto; accent-color:var(--teal);}
+  .checkrow{display:flex; align-items:center; gap:9px; margin-top:12px;}
+  .checkrow label{margin:0; text-transform:none; font-size:12px; color:var(--text-dim); letter-spacing:0; font-weight:400;}
+  fieldset{border:1px solid var(--line); border-radius:8px; padding:14px 16px 18px; margin-top:12px;}
+  legend{padding:0 8px; font-size:11px; color:var(--teal); text-transform:uppercase; letter-spacing:.06em; font-weight:600;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:0 14px;}
+  .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:0 14px;}
+  .row4{display:grid; grid-template-columns:repeat(4,1fr); gap:0 12px;}
+  .btn{background:var(--teal); color:oklch(0.16 0.02 174); border:none; font-family:'Space Grotesk',sans-serif; font-weight:700; letter-spacing:.02em; padding:11px 18px; border-radius:7px; cursor:pointer; font-size:12.5px; text-transform:uppercase; transition:.15s;}
+  .btn:hover{background:var(--teal-bright); box-shadow:0 4px 14px oklch(0.72 0.11 174 / 30%);}
+  .btn.secondary{background:transparent; border:1px solid var(--line); color:var(--text-dim);}
+  .btn.secondary:hover{border-color:var(--teal); color:var(--teal); box-shadow:none;}
+  .btn.small{padding:7px 11px; font-size:11px;}
+  .btn:disabled{opacity:.35; cursor:not-allowed; box-shadow:none;}
+  .decision-panel{background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:16px; margin-top:16px;}
+  .decision-panel h3{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); margin-bottom:12px;}
+  .metric-row{display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed var(--line); font-size:12.5px;}
+  .metric-row:last-child{border-bottom:none;}
+  .metric-row span:last-child{font-family:'Space Grotesk',sans-serif; font-weight:600;}
+  .checklist{list-style:none; margin-top:8px;}
+  .checklist li{display:flex; gap:9px; align-items:center; font-size:12px; padding:4px 0; color:var(--text-dim);}
+  .checklist li.pass{color:var(--green);} .checklist li.fail{color:var(--red);}
+  .checklist li .dot{width:7px; height:7px; border-radius:50%; background:currentColor; flex-shrink:0;}
+  .verdict{margin-top:14px; padding:12px 14px; border-radius:7px; font-family:'Space Grotesk',sans-serif; font-weight:700; text-align:center; letter-spacing:.03em; font-size:13px;}
+  .verdict.go{background:oklch(0.24 0.06 148 / 55%); color:var(--green); border:1px solid var(--green);}
+  .verdict.no{background:oklch(0.24 0.08 24 / 55%); color:var(--red); border:1px solid var(--red);}
+  .verdict.warn{background:oklch(0.26 0.07 68 / 55%); color:var(--amber); border:1px solid var(--amber);}
+  table{width:100%; border-collapse:collapse; font-size:11.5px;}
+  th{background:var(--panel-2); color:var(--text-mute); text-transform:uppercase; letter-spacing:.05em; font-size:9.5px; text-align:left; padding:9px 8px; border-bottom:1px solid var(--line); position:sticky; top:0;}
+  td{padding:8px; border-bottom:1px solid var(--line); color:var(--text-dim); white-space:nowrap;}
+  tr:hover td{background:oklch(1 0 0 / 4%); color:var(--text);}
+  .table-wrap{overflow-x:auto; max-height:60vh; overflow-y:auto; border:1px solid var(--line); border-radius:8px;}
+  .badge{padding:3px 9px; border-radius:20px; font-size:10px; font-weight:600; letter-spacing:.02em;}
+  .badge.abierto{background:oklch(0.28 0.08 68 / 50%); color:var(--amber);}
+  .badge.ganada{background:oklch(0.26 0.07 148 / 50%); color:var(--green);}
+  .badge.perdida{background:oklch(0.26 0.09 24 / 50%); color:var(--red);}
+  .badge.push{background:oklch(0.26 0.05 232 / 50%); color:var(--blue);}
+  .badge.anulada{background:oklch(0.3 0.01 240 / 60%); color:var(--text-mute);}
+  .empty{text-align:center; padding:46px 10px; color:var(--text-mute); font-size:12px;}
+  .stat-strip{display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:16px;}
+  .stat-strip .chip{width:100%; align-items:flex-start;}
+  .toolbar{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; align-items:flex-end;}
+  .toolbar > div{flex:1; min-width:120px;}
+  .toolbar label{margin-top:0;}
+  .goalbar{background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:16px; margin-bottom:16px;}
+  .goalbar .label{display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim); margin-bottom:8px;}
+  .goalbar .track{height:10px; background:oklch(0.13 0.012 240); border-radius:6px; overflow:hidden;}
+  .goalbar .fill{height:100%; background:linear-gradient(90deg,var(--teal),var(--teal-bright));}
+  footer{text-align:center; color:var(--text-mute); font-size:10.5px; padding:24px 0 8px; letter-spacing:.03em;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="tag">Sistema Gambito · SCOUT CORE (capa local)</span>
+    <h1>GOAL <span>HUNTER</span> — Consola de Decisión</h1>
+  </div>
+  <div class="status-strip" id="statusStrip"></div>
+</header>
+
+<div id="stoplossBanner"></div>
+
+<nav class="tabs">
+  <button class="active" data-tab="principal">00 · Principal</button>
+  <button data-tab="reglas">01 · Reglas</button>
+  <button data-tab="nuevo">02 · Nuevo registro</button>
+  <button data-tab="scoutcore">03 · Scout Core</button>
+  <button data-tab="abiertos">04 · Abiertos</button>
+  <button data-tab="historial">05 · Historial</button>
+  <button data-tab="metas">06 · Metas</button>
+  <button data-tab="config">07 · Config</button>
+</nav>
+
+<!-- TAB: PRINCIPAL -->
+<section id="tab-principal" class="tabpanel">
+  <div class="panel" style="border-color:#2a3d52;">
+    <div class="verdict go" style="margin-bottom:18px; padding:16px; font-size:14px; line-height:1.6;">
+      <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; letter-spacing:.06em; text-transform:uppercase; font-size:11px; color:var(--green); margin-bottom:6px;">Julius, el Stoharius</div>
+      "No temo a la derrota, porque sé que la precisión estratégica prevalece sobre la fortuna a largo plazo."
+    </div>
+    <h2 style="letter-spacing:.04em;"><span class="n">00</span>Antes de entrar al mercado</h2>
+    <div class="rule-card" style="border-left-color:var(--teal);">
+      <p style="font-size:13px; line-height:2; color:var(--text);">
+        Soy un hombre. Soy un hombre. Levántate y sé un hombre.<br>
+        La vida es implacable, pero más implacable debe ser mi determinación.<br>
+        Debo tomar las decisiones difíciles. Hacer los sacrificios necesarios.<br>
+        Poseo una fuerza interior que me impulsa a prevalecer y superar mis propios límites.<br>
+        Soy un titán, un depredador, un animal que persigue la excelencia en todas las áreas de la vida.<br><br>
+        Respira profundamente hacia el cerebro, deja que circule por todo tu cuerpo:<br>
+        <i>Inteligencia, estado de flujo, eustrés, fuerza, poder y salud.</i>
+      </p>
+      <p style="font-size:13px; line-height:1.9; color:var(--text); margin-top:14px;">
+        Me digo a mí mismo:<br>
+        1. Yo elijo mi respuesta<br>
+        2. La virtud está aquí<br>
+        3. Hoy es lo que más importa<br>
+        4. Soy suficiente<br>
+        5. Suelto el control <span style="color:var(--text-mute);">(haz lo mejor con lo que está en tu poder, y lo demás acéptalo como viene)</span>
+      </p>
+      <p style="margin-top:14px; font-family:'Space Grotesk',sans-serif; font-weight:700; color:var(--amber); letter-spacing:.05em;">Valkron: Sin emoción, solo ejecución.</p>
+    </div>
+
+    <div class="rule-card" style="border-left-color:#a78bfa;">
+      <h3 style="color:#a78bfa;">📜 Canto del Guerrero Eterno: El Himno de Guts Ram</h3>
+      <p style="font-size:12.5px; line-height:1.95; color:var(--text-dim); white-space:pre-line; margin-top:8px;">Hoy despierto como el sol que hiende la penumbra,
+guerrero forjado en el yunque de la infortunada cuna,
+arquitecto de mi destino, emperador de mi voluntad,
+invoco la OODA del guerrero inmortal:
+fuego que alumbra hasta el abismo final.
+
+Soy el sol que dispersa la sombra callada,
+forjado en la prueba, sin rendición ni jornada,
+GutsSerker Ram, sombra y némesis templada,
+desafío perpetuo que aviva mi cruzada.
+
+Shōgun de mi espíritu, escultor de mi ser,
+Übermensch que trasciende el mero deber;
+cada amanecer canta mi propia ascendencia,
+cada ocaso eleva mi férrea presencia.
+
+No pretendo vencer a otros en vano,
+sólo forjarme mejor que mi ser humano.
+El yunque del tiempo golpea sin tregua,
+mas mi voluntad, titán, la tormenta ruega;
+cada caída, lección de hierro y honor,
+cada herida, estandarte de mayor vigor.
+
+Elijo el sendero donde pocos caminan,
+tras llamas y ruinas que mi temple afinan;
+nunca entrego un instante al vacío,
+cada momento es cincel, estandarte y brío.
+
+Mi corazón late con mil generaciones,
+la adversidad no doblega mis convicciones;
+domino lo que controlo con temple sereno,
+acepto el designio de lo que es ajeno.
+
+Valkron, mi mantra, mi escudo y mi lanza,
+dos sílabas santas, mi última instancia;
+valor para actuar sin miedo ni duda,
+dominio del tiempo, certeza absoluta.
+
+Sin prisa ni pausa, sin emoción vana,
+sólo la acción justa, precisa y templada.
+Valkron me libera de humana flaqueza,
+Valkron es mi ancla, mi faro y mi alteza.
+
+Goal Hunter, Valkron es mi nombre,
+fría es mi mano donde arde el hombre;
+no persigo pérdida ni fortuna ciega,
+mi regla es la espada que jamás se entrega.
+
+Ocho son mis flechas, ninguna es capricho,
+el checklist mi escudo, la paciencia mi nicho;
+si el día no ofrece batalla certera,
+envaino el acero y el alba me espera.
+
+No es el azar quien rige mi apuesta:
+es la disciplina quien gana la gesta.
+SCAMPER mis límites, Kaizen mi sendero,
+Active Recall afila mi acero,
+Pomodoro marca mi avance certero,
+Space Repetition templa mi verbo sincero.
+
+Austero ante el oro, firme ante el miedo,
+cada moneda es cimiento y no anhelo.
+Templado en la fragua de adversidad,
+forjo mi sino con férrea tenacidad;
+mi espíritu es titán, sereno y valiente.
+
+Guío a mis vástagos con luz inclemente,
+faro erguido en la tormenta creciente;
+soy juez de mi alma, exigente y leal,
+mi voluntad se eleva, inquebrantable y real.
+
+Los callos que surcan mi carne y mi mente
+son laureles de guerra, escudo viviente.
+En la danza eterna de creación,
+renazco sublime en cada ascensión:
+hoy, como siempre, mi esfuerzo es mi himno,
+mi senda es la gloria, mi sino es el ritmo.
+
+Hoy es día sagrado, digno de mi gesta,
+hoy, sin retroceso, conquistaré la contienda.</p>
+    </div>
+
+    <div class="rule-card limits">
+      <h3>Para qué es todo esto</h3>
+      <p style="color:var(--text-mute); font-size:11px; margin-bottom:10px;">Marca lo que ya avanzaste — queda guardado solo en este dispositivo.</p>
+      <ul id="listaMotivaciones" class="checklist" style="list-style:none;"></ul>
+    </div>
+  </div>
+</section>
+
+<!-- TAB: REGLAS -->
+<section id="tab-reglas" class="tabpanel" style="display:none;">
+  <div class="panel">
+    <h2><span class="n">01</span>Protocolo Goal Hunter v1.1 — vigente</h2>
+
+    <div class="verdict warn" style="margin-bottom:16px; font-size:14px; padding:14px;">A veces el gol nunca llega. (Debo lidiar con eso.)</div>
+
+    <div class="rule-card limits">
+      <h3>A · Gestión de banca</h3>
+      <ul>
+        <li>Stake <b style="color:var(--amber)">fijo</b>, no variable — lo calculas en tu hoja de banca aparte y lo actualizas en Config cada día. El motor de esta consola no dimensiona la apuesta, solo evalúa si hay estadística a favor.</li>
+        <li>Meta diaria en $: al alcanzarla, la consola te sugiere pasar a stake mínimo en las entradas restantes del día (no bloquea, solo sugiere).</li>
+        <li>Un partido a la vez entre semana; <b style="color:var(--amber)">2 partidos abiertos simultáneos</b> permitidos sábado y domingo. Nunca dos entradas al mismo mercado del mismo partido, ni re-entradas para "recuperar" una pérdida en el mismo partido.</li>
+        <li>Máximo 8 entradas por día entre semana, <b style="color:var(--amber)">16 entradas sábado y domingo</b>.</li>
+      </ul>
+    </div>
+
+    <div class="rule-card discard">
+      <h3>Stop-loss del día</h3>
+      <p><b>2 pérdidas acumuladas</b> en el día (no necesariamente consecutivas) → se cierra la operación, de <b>lunes a viernes</b>.</p>
+      <p style="margin-top:6px;">Sábado y domingo el límite sube a <b>3 pérdidas</b> — o hasta cubrir el objetivo del día, lo que ocurra primero.</p>
+    </div>
+
+    <div class="rule-card">
+      <h3>B · Filtros de entrada (todos deben cumplirse)</h3>
+      <ol>
+        <li>Marcador al descanso o inicio del 2T: 0-0, 0-1, 1-0 o 1-1, con el favorito perdiendo o empatando y generando volumen ofensivo real.</li>
+        <li>Línea: únicamente +0.5 o +1 asiático.</li>
+        <li>Cuota mínima: 1.35.</li>
+        <li>Sin lluvia fuerte ni cancha pesada.</li>
+        <li>Cuota pre-partido comparada contra la cuota en vivo, para identificar al favorito real y detectar cambios de dinámica.</li>
+      </ol>
+    </div>
+
+    <div class="rule-card" style="border-left-color:#7fb0e6;">
+      <h3 style="color:#7fb0e6;">C · Protocolo de herramientas (lectura en vivo)</h3>
+      <p><b>Sofascore</b> — estadísticas duras: tiros al arco (dato rey), corners, ataques peligrosos, xG en vivo, momentum. Fuente primaria de números.</p>
+      <p style="margin-top:6px;"><b>Flashscore</b> — verificación cruzada y velocidad: confirma cifras de Sofascore, más rápido para eventos en vivo (rojas, cambios, goles anulados).</p>
+      <p style="margin-top:6px;"><b>Overlyzer</b> — presión sostenida: la curva debe mostrar dominio continuo de 10-15 min, no un pico de 2 min tras un corner.</p>
+      <p style="margin-top:6px;"><b>Regla de confluencia:</b> las tres deben coincidir. Presión en Overlyzer + momentum sin tiros al arco = ruido, no señal. Jerarquía: tiros a puerta y xG mandan; los gráficos de presión confirman.</p>
+    </div>
+
+    <div class="rule-card">
+      <h3>D · Validación del escenario</h3>
+      <ul>
+        <li>Tabla de posiciones y motivación de ambos equipos.</li>
+        <li>Historial reciente: goles marcados/recibidos casa-visitante, % de partidos cerrados 0-0. Un especialista en porterías a cero invalida la entrada aunque el tablero se vea bien.</li>
+        <li>Tarjeta roja: catalizador solo con tiempo suficiente y sin lluvia — nunca señal única.</li>
+      </ul>
+    </div>
+
+    <div class="rule-card" style="border-left-color:#a78bfa;">
+      <h3 style="color:#a78bfa;">Ventanas temporales — referencia</h3>
+      <table>
+        <thead><tr><th>Ventana</th><th>P(≥1 gol)</th><th>Eficiencia de mercado</th></tr></thead>
+        <tbody>
+          <tr><td>1-20 min</td><td>~28-32%</td><td>Mercado sobrepreciado (recreativos entran temprano)</td></tr>
+          <tr><td>20-35 min</td><td>~22-25%</td><td>Razonablemente eficiente</td></tr>
+          <tr><td>35-45+</td><td>~18-22%</td><td>Ligero infraprecio de cierre de 1T</td></tr>
+          <tr><td>46-60 min</td><td>~25-28%</td><td>Eficiente, volumen alto</td></tr>
+          <tr><td style="color:var(--amber)"><b>60-75 min</b></td><td>~23-26%</td><td style="color:var(--amber)"><b>Mayor ineficiencia — ventana óptima</b></td></tr>
+          <tr><td>75-85 min</td><td>~18-21%</td><td>Mercado sobreajusta por "drama final"</td></tr>
+          <tr><td>85-90+</td><td>~12-16%</td><td>Alta varianza, difícil de explotar</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="rule-card" style="border-left-color:#a78bfa;">
+      <h3 style="color:#a78bfa;">Mercado sugerido por situación — referencia</h3>
+      <table>
+        <thead><tr><th>Situación</th><th>Mercado preferente</th></tr></thead>
+        <tbody>
+          <tr><td>0-0 min 30-55, señal media</td><td>Over 1.0 asiático</td></tr>
+          <tr><td>0-0 min 30-55, señal fuerte (xG alto bilateral)</td><td>Over 0.5</td></tr>
+          <tr><td>0-0 min 60+, señal media</td><td>Over 0.5 (urgencia temporal)</td></tr>
+          <tr><td>1-0 min 50-70, favorito perdiendo con dominio</td><td>Siguiente gol / 1X2 favorito</td></tr>
+          <tr><td>1-0 min 70+, dominio extremo</td><td>1X2 favorito; Over 1.5 solo con señal bilateral</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="rule-card discard">
+      <h3>Taxonomía de errores — no cometer</h3>
+      <ul>
+        <li><b>Va a entrar seguro:</b> el volumen de ocasiones no garantiza el próximo gol. Cada evaluación es independiente.</li>
+        <li><b>Escalado indisciplinado:</b> nunca doblar tras perder para "recuperar". Tamaño fijo, sin excepciones.</li>
+        <li><b>Posesión visual:</b> verifica xG rolling antes de fiarte de quién "se ve" dominando.</li>
+        <li><b>Narrativa de expulsión:</b> espera 3-5 min post-roja y confirma que el equipo en superioridad realmente ataca antes de entrar.</li>
+        <li><b>Cuota como señal:</b> si la cuota ya bajó, el valor ya se fue — el movimiento confirma pero llega tarde.</li>
+        <li>Regla de hierro: máximo 3 entradas en el mismo partido, tamaño decreciente, nunca creciente.</li>
+      </ul>
+    </div>
+
+    <div class="rule-card" style="border-left-color:#7fb0e6;">
+      <h3 style="color:#7fb0e6;">Motor de decisión — 100% tu análisis</h3>
+      <p>Esta consola no calcula probabilidad, edge ni EV para Goal Hunter — es evaluación en vivo basada enteramente en tu checklist y tu criterio. El motor estadístico (Poisson + Dixon-Coles) vive en la pestaña <b>Scout Core</b>, para el análisis prematch, no aquí.</p>
+    </div>
+
+    <div class="rule-card limits">
+      <h3>Cuota de cierre</h3>
+      <p>Campo opcional, solo informativo — normalmente solo la tienes cuando pierdes el pronóstico (si ganas, el mercado desaparece con tu acierto). No calcula CLV aquí: esa métrica se reserva para las apuestas prematch de Scout Core.</p>
+    </div>
+  </div>
+</section>
+
+<!-- TAB: NUEVO REGISTRO -->
+<section id="tab-nuevo" class="tabpanel" style="display:none;">
+  <div class="panel">
+    <h2><span class="n">02</span>Nuevo registro — captura en vivo</h2>
+    <p style="color:var(--amber); font-size:11px; margin-bottom:10px;">Los campos en <b>ámbar con *</b> son obligatorios para guardar el registro. El resto es opcional.</p>
+    <form id="formNuevo">
+      <fieldset>
+        <legend>Identificación del partido</legend>
+        <div class="row2">
+          <div><label>Fecha</label><input type="date" id="f_fecha" required></div>
+          <div><label>Liga</label><input type="text" id="f_liga" placeholder="ej. Ecuador - Serie A" required></div>
+        </div>
+        <label>Partido (Local vs Visitante)</label>
+        <input type="text" id="f_partido" placeholder="Ej. Napoli vs Roma" required>
+        <div id="ligaWidgetGH"></div>
+      </fieldset>
+
+      <fieldset style="border-color:var(--amber);">
+        <legend style="color:var(--amber);">Escenario de entrada — prefiltro obligatorio</legend>
+        <label>¿A cuál de tus escenarios corresponde este partido?</label>
+        <select id="f_escenario" required>
+          <option value="">— Selecciona el escenario —</option>
+          <option value="Favorito atascado en 0-0">Favorito atascado en 0-0 (marcador 0-0, tu favorito domina el juego y las métricas de presión lo respaldan)</option>
+          <option value="Marcador prestado">Marcador prestado (vas 0-1 en contra, pero tu favorito domina el juego y las métricas de presión lo respaldan)</option>
+          <option value="Empate motivado — 1-1">Empate motivado — 1-1 (tu favorito domina, hay algo importante en juego que incentiva el desempate, y las métricas de presión lo respaldan)</option>
+          <option value="Empate motivado — 2-2">Empate motivado — 2-2 (mismo patrón que el anterior, con el marcador dos goles arriba)</option>
+          <option value="Superioridad numérica del favorito">Superioridad numérica del favorito (expulsaron a un jugador del equipo NO favorito)</option>
+          <option value="Dominio extremo unilateral">Dominio extremo unilateral (un equipo domina de forma brutal — favorece un gol adicional)</option>
+          <option value="Otro">Otro (especificar en observaciones)</option>
+        </select>
+      </fieldset>
+
+      <fieldset>
+        <legend>Datos del partido</legend>
+        <div class="row3">
+          <div><label>Minuto inicio análisis</label><input type="number" id="f_minuto_inicio" placeholder="ej. 55" min="1" max="120"></div>
+          <div><label>Minuto fin análisis</label><input type="number" id="f_minuto_fin" placeholder="ej. 63" min="1" max="120"></div>
+          <div><label>¿Algo pasó mientras analizabas?</label>
+            <select id="f_evento_analisis">
+              <option value="Ninguno">Ninguno</option>
+              <option value="Gol">Gol</option>
+              <option value="Tarjeta roja">Tarjeta roja</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </div>
+        </div>
+        <div class="row2" id="eventoDetalleWrap" style="display:none;">
+          <div><label>Detalle del evento</label><input type="text" id="f_evento_detalle" placeholder="ej. gol al minuto 42, local"></div>
+        </div>
+        <div class="row4">
+          <div><label>Minuto al entrar</label><input type="number" id="f_minuto" placeholder="ej. 60" min="1" max="90" required></div>
+          <div><label>Score al entrar — Local</label><input type="number" id="f_score_entrada_l" min="0" placeholder="ej. 0" required></div>
+          <div><label>Score al entrar — Visitante</label><input type="number" id="f_score_entrada_v" min="0" placeholder="ej. 0" required></div>
+          <div><label>Favorito pre-partido</label>
+            <select id="f_favorito"><option value="Ninguno">Sin favorito claro</option><option value="Local">Local</option><option value="Visitante">Visitante</option></select>
+          </div>
+        </div>
+        <div class="row2">
+          <div><label>Posición tabla — Local</label><input type="number" id="f_pos_tabla1" placeholder="ej. 3"></div>
+          <div><label>Posición tabla — Visitante</label><input type="number" id="f_pos_tabla2" placeholder="ej. 9"></div>
+        </div>
+        <fieldset style="margin-top:10px;">
+          <legend>Historial reciente (revisa los últimos partidos disponibles en la plataforma)</legend>
+          <div class="row2">
+            <div><label>0-0 — Local (de los revisados, cuántos terminaron 0-0 — ej. 1/7)</label><input type="text" id="f_h_00_l" placeholder="1/7"></div>
+            <div><label>No marcó — Local (de esos mismos, cuántos el local no anotó ningún gol, aunque no fue 0-0 — ej. 2/7)</label><input type="text" id="f_h_nomarco_l" placeholder="2/7"></div>
+          </div>
+          <div class="row2">
+            <div><label>0-0 — Visitante (de los revisados, cuántos terminaron 0-0 — ej. 1/7)</label><input type="text" id="f_h_00_v" placeholder="1/7"></div>
+            <div><label>No marcó — Visitante (de esos mismos, cuántos el visitante no anotó ningún gol, aunque no fue 0-0 — ej. 2/7)</label><input type="text" id="f_h_nomarco_v" placeholder="2/7"></div>
+          </div>
+        </fieldset>
+        <div class="checkrow"><input type="checkbox" id="f_lluvia"><label for="f_lluvia">Lluvia fuerte / cancha pesada</label></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Protocolo de herramientas (regla de confluencia)</legend>
+        <div class="row3">
+          <div class="checkrow" style="margin-top:20px;"><input type="checkbox" id="f_sofascore"><label for="f_sofascore">Verificado en Sofascore</label></div>
+          <div class="checkrow" style="margin-top:20px;"><input type="checkbox" id="f_flashscore"><label for="f_flashscore">Verificado en Flashscore</label></div>
+          <div class="checkrow" style="margin-top:20px;"><input type="checkbox" id="f_roja_previa"><label for="f_roja_previa">Ya hubo tarjeta roja</label></div>
+        </div>
+        <label>Overlyzer — estado de la presión</label>
+        <select id="f_overlyzer">
+          <option value="">— sin revisar —</option>
+          <option value="Sostenido 10-15min">Dominio sostenido ≥10-15 min</option>
+          <option value="Pico aislado">Pico aislado (post-corner, &lt;5 min)</option>
+          <option value="No disponible">No disponible en esta plataforma</option>
+        </select>
+      </fieldset>
+
+      <fieldset>
+        <legend>Métricas equipo 1 (local)</legend>
+        <div class="row4">
+          <div><label>Corners</label><input type="number" id="f_corners1" placeholder="ej. 5" min="0"></div>
+          <div><label>Tiros al arco</label><input type="number" id="f_tiros1" placeholder="ej. 4" min="0"></div>
+          <div><label>Posesión %</label><input type="number" id="f_pos1" placeholder="ej. 58 (%)" min="0" max="100"></div>
+          <div><label>xG</label><input type="number" step="0.01" id="f_xg1" placeholder="ej. 1.20" min="0"></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Métricas equipo 2 (visitante)</legend>
+        <div class="row4">
+          <div><label>Corners</label><input type="number" id="f_corners2" placeholder="ej. 3" min="0"></div>
+          <div><label>Tiros al arco</label><input type="number" id="f_tiros2" placeholder="ej. 2" min="0"></div>
+          <div><label>Posesión %</label><input type="number" id="f_pos2" placeholder="ej. 42 (%)" min="0" max="100"></div>
+          <div><label>xG</label><input type="number" step="0.01" id="f_xg2" placeholder="ej. 0.60" min="0"></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Mercado y stake</legend>
+        <div class="row2">
+          <div>
+            <label>Mercado</label>
+            <select id="f_mercado">
+              <option value="Over 0.5">Over 0.5 (goles restantes)</option>
+              <option value="Over 1">Over 1 (goles restantes)</option>
+              <option value="Over 1.5">Over 1.5 (goles restantes)</option>
+              <option value="Over 2">Over 2 (goles restantes)</option>
+              <option value="Over 2.5">Over 2.5 (goles restantes)</option>
+              <option value="Over 3">Over 3 (goles restantes)</option>
+              <option value="Ganador del partido">Ganador del partido</option>
+              <option value="Empata o gana">Empata o gana (doble oportunidad)</option>
+              <option value="Tarjeta roja">Tarjeta roja (catalizador de un gol más)</option>
+              <option value="Otro (especificar)">Otro (especificar en Estrategia)</option>
+            </select>
+          </div>
+          <div id="selWrap" style="display:none;"><label>Lado</label>
+            <select id="f_seleccion"><option value="local">Local</option><option value="visitante">Visitante</option></select>
+          </div>
+        </div>
+        <div class="row3">
+          <div><label>Cuota</label><input type="number" step="0.001" id="f_cuota" placeholder="ej. 1.85" min="1.01" required></div>
+          <div><label>Confianza (1-5, manual)</label><input type="number" id="f_confianza" placeholder="1 a 5" min="1" max="5" value="3"></div>
+          <div><label>Patrón táctico</label>
+            <select id="f_patron">
+              <option value="">— sin clasificar —</option>
+              <option value="P1 Favorito atascado">P1 · Favorito atascado (cuota baja va empatando/perdiendo pero domina xG y tiros)</option>
+              <option value="P2 Marcador prestado">P2 · Marcador prestado (el marcador no refleja el dominio; el que pierde tiene más xG)</option>
+              <option value="P3 Roja + dominio">P3 · Roja + dominio (expulsión en el equipo que gana/empata, y el otro toma control)</option>
+              <option value="P4 0-0 caliente">P4 · 0-0 caliente (xG bilateral alto, muchas ocasiones reales sin gol todavía)</option>
+              <option value="P5 Urgencia 2T">P5 · Urgencia de segunda mitad (va perdiendo min. 65-80, cambios ofensivos, presión activa)</option>
+              <option value="P6 Dominio estéril convertido">P6 · Dominio estéril convertido (tenía posesión sin peligro; ahora los tiros al arco suben de golpe)</option>
+              <option value="P7 Set piece zona caliente">P7 · Set piece en zona caliente (acumula corners/faltas directas cerca del área)</option>
+              <option value="P8 Contraataque dominante">P8 · Contraataque dominante (poca posesión pero alto xG por transiciones rápidas)</option>
+              <option value="P9 Partido de vuelta">P9 · Partido de vuelta / remontada (eliminatoria, necesita X goles para pasar)</option>
+              <option value="P10 Cambio táctico disruptivo">P10 · Cambio táctico disruptivo (cambio de sistema o de portero que rompe el equilibrio)</option>
+              <option value="P11 1-1 con favorito dominante">P11 · 1-1 con favorito dominante (equipo fuerte va rompiendo el empate)</option>
+              <option value="P12 Empate motivado">P12 · Empate motivado (favorito domina, hay algo importante en juego que incentiva el desempate)</option>
+              <option value="P13 Dominio extremo unilateral">P13 · Dominio extremo unilateral (dominio brutal de un equipo — favorece un gol adicional)</option>
+            </select>
+          </div>
+        </div>
+        <div><label>Stake a usar ($)</label><input type="number" step="0.01" id="f_stake" placeholder="ej. 0.93" required>
+          <div id="stakeFuenteInfo" style="font-size:10px; margin-top:3px; color:var(--text-mute);"></div>
+          <button type="button" class="btn secondary small" id="btnRecalcularStake" style="margin-top:4px; padding:3px 8px; font-size:10px;">Recalcular</button>
+        </div>
+        </div>
+        <label>Estrategia / nota</label>
+        <input type="text" id="f_estrategia" placeholder="Ej. dominio claro local, presión sostenida ≥10 min en Overlyzer">
+      </fieldset>
+
+      <fieldset style="border-color:#a78bfa;">
+        <legend style="color:#a78bfa;">Confirmación con IA (alineación y motivación)</legend>
+        <p style="color:var(--text-mute); font-size:11px; margin-bottom:10px;">No pesan en el checklist ni en ningún cálculo — son apoyo a tu propio criterio antes de decidir.</p>
+        <div id="ghQualPromptsBox"></div>
+        <div class="row2">
+          <div><label>Notas alineación (Grok/Perplexity)</label><textarea id="f_notas_alineacion" rows="3"></textarea></div>
+          <div><label>Notas motivación contextual</label><textarea id="f_notas_motivacion" rows="3"></textarea></div>
+        </div>
+        <div class="checkrow" style="margin-top:14px;"><input type="checkbox" id="f_alineacion_ok"><label for="f_alineacion_ok">Alineación confirmada: titulares habituales en cancha, sin bajas clave que reduzcan el poder ofensivo calculado (no es amistoso con suplentes)</label></div>
+      </fieldset>
+
+      <fieldset style="border-color:#a78bfa;">
+        <legend style="color:#a78bfa;">Metacognición — antes de entrar</legend>
+        <div class="checkrow"><input type="checkbox" id="f_impulso_hubo"><label for="f_impulso_hubo">Sentí el impulso de romper alguna regla antes de esta entrada</label></div>
+        <label>¿Qué pensabas exactamente? (opcional — ej. "esta cuota no volverá a existir")</label>
+        <input type="text" id="f_impulso_pensamiento" placeholder="Tu pensamiento literal, tal cual lo tuviste">
+        <label style="margin-top:12px;">¿Qué sesgo(s) sentiste presentes? (marca los que apliquen)</label>
+        <div id="impulsoSesgosBox" style="display:grid; grid-template-columns:1fr 1fr; gap:2px 10px; margin-top:4px;"></div>
+      </fieldset>
+
+      <div id="decisionOut"></div>
+
+      <div style="margin-top:16px; display:flex; gap:10px;">
+        <button type="button" class="btn secondary" id="btnCalcular">Calcular</button>
+        <button type="submit" class="btn" id="btnGuardar" disabled>Guardar como abierto</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<!-- TAB: ABIERTOS -->
+<section id="tab-abiertos" class="tabpanel" style="display:none;">
+  <div class="panel">
+    <h2><span class="n">04</span>Registros abiertos — pendientes de resultado</h2>
+    <div id="abiertosWrap"></div>
+  </div>
+</section>
+
+<!-- TAB: HISTORIAL -->
+<section id="tab-historial" class="tabpanel" style="display:none;">
+  <div class="panel">
+    <h2><span class="n">05</span>Historial completo</h2>
+    <div class="stat-strip" id="histStats"></div>
+    <div class="toolbar">
+      <div><label>Filtrar liga</label><input type="text" id="filtroLiga" placeholder="todas"></div>
+      <div><label>Filtrar mercado</label>
+        <select id="filtroMercado"><option value="">todos</option><option value="over_restante">Over restante</option><option value="over_total">Over/Under total</option><option value="1x2">1X2</option></select>
+      </div>
+      <div><label>Filtrar resultado</label>
+        <select id="filtroResultado"><option value="">todos</option><option value="Abierto">Abierto</option><option value="Ganada">Ganada</option><option value="Perdida">Perdida</option><option value="Push">Push</option><option value="Cash out">Cash out</option><option value="Anulada">Anulada</option></select>
+      </div>
+      <button class="btn small" id="btnExportar">Descargar Excel (.xlsx)</button>
+    </div>
+    <div class="table-wrap" id="histWrap"></div>
+  </div>
+</section>
+
+<!-- TAB: METAS -->
+<section id="tab-metas" class="tabpanel" style="display:none;">
+  <div class="panel">
+    <h2><span class="n">06</span>Metas y escalado de banca</h2>
+    <div class="goalbar">
+      <div class="label"><span>Meta del día</span><span id="metaDiaTxt"></span></div>
+      <div class="track"><div class="fill" id="metaDiaFill"></div></div>
+    </div>
+    <div class="grid" style="margin-top:6px;">
+      <div class="rule-card">
+        <h3>Bankroll</h3>
+        <p id="bankrollInfo"></p>
+      </div>
+      <div class="rule-card">
+        <h3>Proyección a 31 días (adaptativa)</h3>
+        <p id="proyeccionInfo"></p>
+      </div>
+    </div>
+    <p style="color:var(--text-mute); font-size:11px; margin-top:10px;">La proyección de 31 días NO es un número fijo: cada día se recalcula desde tu bankroll real (no el planificado). Si un día cierras arriba del plan, la meta de fin de mes sube sola; si cierras abajo, baja. La meta diaria (referencia) se edita en <b>Config</b>. Este panel es informativo — no bloquea entradas, solo te muestra el avance.</p>
+
+    <div class="rule-card limits" style="margin-top:16px;">
+      <h3>Activar día de hoy en Bitácora</h3>
+      <p style="color:var(--text-dim); font-size:11.5px; margin-bottom:10px;">Registra la fecha de hoy en la próxima fila libre de Bitácora, sin entrar al Sheet. Si ya estaba activada, no pasa nada — solo te confirma.</p>
+      <button class="btn secondary small" id="btnActivarDia" style="width:100%;">Activar hoy en Bitácora</button>
+    </div>
+
+    <div class="rule-card limits" style="margin-top:16px;">
+      <h3>Ajustar un valor de Bitácora de hoy</h3>
+      <p style="color:var(--text-dim); font-size:11.5px; margin-bottom:10px;">Escribe DIRECTO al Sheet, sin que tengas que abrir Bitácora a mano — incluye corregir el bankroll con el que arranca el día. <b style="color:var(--amber);">Ojo:</b> el campo que corrijas deja de ser fórmula automática por el resto del día — si registras más apuestas después, ese campo puntual no se va a recalcular solo. Corrige al final del día o antes de operar, no a mitad.</p>
+      <div class="row2">
+        <div><label>Campo a corregir</label>
+          <select id="fixCampo">
+            <option value="Bank roll inicial">Bank roll inicial</option>
+            <option value="BR final real">BR final real</option>
+            <option value="Meta">Meta (nota)</option>
+          </select>
+        </div>
+        <div><label>Valor nuevo</label><input type="text" id="fixValor" placeholder="ej. 8 o 14.08"></div>
+      </div>
+      <button class="btn secondary small" id="btnFixBitacora" style="width:100%; margin-top:10px;">Corregir en el Sheet</button>
+    </div>
+  </div>
+</section>
+
+<!-- TAB: SCOUT CORE -->
+<section id="tab-scoutcore" class="tabpanel" style="display:none;">
+  <div class="panel">
+    <h2><span class="n">03</span>Scout Core — motor prematch (Gambito v3.0)</h2>
+    <p style="color:var(--text-mute); font-size:11.5px; margin-bottom:14px;">Segunda lectura, independiente de Goal Hunter: 100% estadística, cero checklist manual. Tú buscas los datos (xGscore, FBref, Understat) y los escribes aquí; el motor corre λ base → momentum → contexto → Dixon-Coles → mercados → vetos → Kelly, exactamente como se lo pedías a Opus, pero local y sin costo de tokens. Guarda análisis aunque no termines apostando — no todos van a dar edge.</p>
+
+    <form id="formScoutCore">
+      <fieldset style="border-color:#a78bfa;">
+        <legend style="color:#a78bfa;">1 · Generar prompt para la IA</legend>
+        <p style="color:var(--text-mute); font-size:11px; margin-bottom:8px;">Completa Local/Visitante/Fecha más abajo (sección "Identificación") y estos 3 links, y arma el prompt exacto — con el formato que ya usas y los nombres de campo que este importador reconoce.</p>
+        <div class="row2">
+          <div><label>Link xGScore</label><input type="text" id="sc_link_xgs" placeholder="https://..."></div>
+          <div><label>Link SofaScore</label><input type="text" id="sc_link_sofa" placeholder="https://..."></div>
+        </div>
+        <label>Link 1xBet</label>
+        <input type="text" id="sc_link_1xbet" placeholder="https://...">
+        <button type="button" class="btn secondary small" id="btnGenerarPrompt" style="margin-top:10px;">Generar prompt</button>
+        <textarea id="scPromptOut" rows="6" readonly style="width:100%; margin-top:10px; background:#0a121f; border:1px solid var(--line); color:var(--text-dim); border-radius:3px; padding:8px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; display:none;"></textarea>
+        <button type="button" class="btn small" id="btnCopiarPrompt" style="margin-top:8px; display:none;">Copiar prompt</button>
+        <p style="color:var(--text-mute); font-size:10.5px; margin-top:6px;">Pega el prompt en cualquier chat de IA, adjunta tus 3 capturas (xGScore, SofaScore, 1xBet), y pega el JSON que te devuelva en el cuadro de abajo.</p>
+      </fieldset>
+
+      <fieldset style="border-color:#a78bfa;">
+        <legend style="color:#a78bfa;">2 · Importar el JSON que te devolvió la IA</legend>
+        <p style="color:var(--text-mute); font-size:11px; margin-bottom:8px;">Pásale a cualquier IA tus capturas de pantalla con el prompt que tienes guardado (te lo di aparte). Pega aquí el JSON que te devuelva y rellena el formulario solo — revisa los números antes de calcular, no todo llega perfecto.</p>
+        <textarea id="scJsonImport" rows="4" style="width:100%; background:#0a121f; border:1px solid var(--line); color:var(--text); border-radius:3px; padding:8px; font-family:'IBM Plex Mono',monospace; font-size:11.5px;" placeholder='{"liga":"Serie A","partido":"Napoli vs Roma","forma_l_anot":1.8, ...}'></textarea>
+        <button type="button" class="btn secondary small" id="btnImportarSC" style="margin-top:8px;">Rellenar formulario desde JSON</button>
+      </fieldset>
+
+      <fieldset>
+        <legend>Identificación</legend>
+        <div class="row2">
+          <div><label>Fecha</label><input type="date" id="sc_fecha" required></div>
+          <div><label>Liga</label><input type="text" id="sc_liga" placeholder="ej. Ecuador - Serie A"></div>
+        </div>
+        <label>Partido (Local vs Visitante)</label>
+        <input type="text" id="sc_partido" placeholder="Ej. Chelsea vs Manchester City" required>
+        <div id="ligaWidgetSC"></div>
+      </fieldset>
+
+      <fieldset style="border-color:#a78bfa;">
+        <legend style="color:#a78bfa;">3 · Análisis cualitativo complementario</legend>
+        <p style="color:var(--text-mute); font-size:11px; margin-bottom:10px;">Ninguno de estos campos pesa en λ, edge, EV ni Kelly — son observación pura para tu propio criterio. Genera el prompt, cópialo, pégalo en Grok, y trae aquí lo que te devuelva.</p>
+        <div id="qualPromptsBox"></div>
+        <div class="row2">
+          <div><label>Notas alineación — Local</label><textarea id="sc_notas_alin_l" rows="3"></textarea></div>
+          <div><label>Notas alineación — Visitante</label><textarea id="sc_notas_alin_v" rows="3"></textarea></div>
+        </div>
+        <div class="row2">
+          <div><label>Notas sentimiento — Local</label><textarea id="sc_notas_sent_l" rows="3"></textarea></div>
+          <div><label>Notas sentimiento — Visitante</label><textarea id="sc_notas_sent_v" rows="3"></textarea></div>
+        </div>
+        <label>Notas H2H (enfrentamientos directos)</label>
+        <textarea id="sc_notas_h2h" rows="3"></textarea>
+        <label>Notas motivación contextual</label>
+        <textarea id="sc_notas_motivacion" rows="3"></textarea>
+        <label>Notas clima / estado de cancha</label>
+        <textarea id="sc_notas_clima" rows="3"></textarea>
+      </fieldset>
+
+      <fieldset>
+        <legend>xG — Local</legend>
+        <div class="row4">
+          <div><label>Forma (5) anotados</label><input type="number" step="0.01" id="sc_forma_l_anot" placeholder="ej. 1.80"></div>
+          <div><label>Forma (5) recibidos</label><input type="number" step="0.01" id="sc_forma_l_rec" placeholder="ej. 0.90"></div>
+          <div><label>Temporada anotados</label><input type="number" step="0.01" id="sc_temp_l_anot" placeholder="ej. 1.50"></div>
+          <div><label>Temporada recibidos</label><input type="number" step="0.01" id="sc_temp_l_rec" placeholder="ej. 1.10"></div>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>xG — Visitante</legend>
+        <div class="row4">
+          <div><label>Forma (5) anotados</label><input type="number" step="0.01" id="sc_forma_v_anot" placeholder="ej. 1.30"></div>
+          <div><label>Forma (5) recibidos</label><input type="number" step="0.01" id="sc_forma_v_rec" placeholder="ej. 1.20"></div>
+          <div><label>Temporada anotados</label><input type="number" step="0.01" id="sc_temp_v_anot" placeholder="ej. 1.10"></div>
+          <div><label>Temporada recibidos</label><input type="number" step="0.01" id="sc_temp_v_rec" placeholder="ej. 1.40"></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Forma y contexto</legend>
+        <div class="row2">
+          <div><label>Puntos últimos 5 — Local (0-15)</label><input type="number" id="sc_pts_l" placeholder="0 a 15" min="0" max="15"></div>
+          <div><label>Puntos últimos 5 — Visitante (0-15)</label><input type="number" id="sc_pts_v" placeholder="0 a 15" min="0" max="15"></div>
+        </div>
+        <div class="row2">
+          <div><label>Suspensiones clave — Local</label>
+            <select id="sc_susp_l"><option value="0">Ninguna</option><option value="1">1</option><option value="2+">2 o más</option></select>
+          </div>
+          <div><label>Suspensiones clave — Visitante</label>
+            <select id="sc_susp_v"><option value="0">Ninguna</option><option value="1">1</option><option value="2+">2 o más</option></select>
+          </div>
+        </div>
+        <div class="row2">
+          <div><label>Motivación diferencial</label>
+            <select id="sc_motivacion"><option value="ninguno">Sin diferencia clara</option><option value="local">Local con más motivación</option><option value="visitante">Visitante con más motivación</option></select>
+          </div>
+          <div class="checkrow" style="margin-top:26px;"><input type="checkbox" id="sc_sede_neutral"><label for="sc_sede_neutral">Sede neutral</label></div>
+        </div>
+        <div class="row2">
+          <div><label>Suerte xG % — Local (opcional)</label><input type="number" id="sc_suerte_l" placeholder="ej. 12 o -15"></div>
+          <div><label>Suerte xG % — Visitante (opcional)</label><input type="number" id="sc_suerte_v" placeholder="ej. 12 o -15"></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Cuotas Pinnacle (actuales)</legend>
+        <div class="row3">
+          <div><label>Local (1)</label><input type="number" step="0.001" id="sc_cuota_local" placeholder="ej. 1.85"></div>
+          <div><label>Empate (X)</label><input type="number" step="0.001" id="sc_cuota_empate" placeholder="ej. 3.40"></div>
+          <div><label>Visitante (2)</label><input type="number" step="0.001" id="sc_cuota_visitante" placeholder="ej. 4.20"></div>
+        </div>
+        <div class="row4">
+          <div><label>Over 2.5</label><input type="number" step="0.001" id="sc_cuota_over25" placeholder="ej. 1.90"></div>
+          <div><label>Under 2.5</label><input type="number" step="0.001" id="sc_cuota_under25" placeholder="ej. 1.95"></div>
+          <div><label>BTTS Sí</label><input type="number" step="0.001" id="sc_cuota_btts_si" placeholder="ej. 1.80"></div>
+          <div><label>BTTS No</label><input type="number" step="0.001" id="sc_cuota_btts_no" placeholder="ej. 2.00"></div>
+        </div>
+        <label>Cuotas de apertura (opcional — activa el veto de movimiento)</label>
+        <div class="row2">
+          <div><label>Apertura Local</label><input type="number" step="0.001" id="sc_apertura_local" placeholder="ej. 1.75"></div>
+          <div><label>Apertura Visitante</label><input type="number" step="0.001" id="sc_apertura_visitante" placeholder="ej. 4.50"></div>
+        </div>
+        <label>Probabilidades xGscore % (opcional — activa chequeo de divergencia)</label>
+        <div class="row3">
+          <div><label>Local %</label><input type="number" id="sc_xgs_local" placeholder="ej. 45 (%)"></div>
+          <div><label>Empate %</label><input type="number" id="sc_xgs_empate" placeholder="ej. 25 (%)"></div>
+          <div><label>Visitante %</label><input type="number" id="sc_xgs_visitante" placeholder="ej. 30 (%)"></div>
+        </div>
+      </fieldset>
+
+      <div id="scDecisionOut"></div>
+
+      <div style="margin-top:16px; display:flex; gap:10px;">
+        <button type="button" class="btn secondary" id="scBtnCalcular">Calcular</button>
+        <button type="submit" class="btn" id="scBtnGuardar" disabled>Guardar análisis</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h3 style="font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); margin-bottom:10px;">Análisis pendientes de resultado</h3>
+    <div id="scAbiertosWrap"></div>
+  </div>
+
+  <div class="panel">
+    <h3 style="font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); margin-bottom:10px;">Historial Scout Core</h3>
+    <div class="stat-strip" id="scHistStats"></div>
+    <button class="btn small" id="scBtnExportar" style="margin-bottom:10px;">Descargar Excel (.xlsx)</button>
+    <div class="table-wrap" id="scHistWrap"></div>
+  </div>
+</section>
+
+<section id="tab-config" class="tabpanel" style="display:none;">
+  <div class="panel">
+    <h2><span class="n">07</span>Configuración operativa</h2>
+
+    <div class="rule-card"><h3>Banca del día (actualizar cada mañana)</h3>
+      <div class="grid">
+        <div><label>Stake de respaldo, si Bitácora no tiene fila hoy ($)</label><input type="number" id="c_stakefijo" placeholder="ej. 0.93" step="0.01"></div>
+        <div><label>Stake mínimo (si se cubre la meta del día) ($)</label><input type="number" id="c_stakeminimo" placeholder="ej. 0.30" step="0.01"></div>
+        <div><label>Bankroll de respaldo, si Bitácora no tiene fila hoy ($)</label><input type="number" id="c_bankrollinicio" placeholder="ej. 8.00" step="0.01"></div>
+        <div><label>Meta diaria de largo plazo ($) — referencia, ya no dispara "meta cubierta"</label><input type="number" id="c_metadiaria" placeholder="ej. 120" step="0.01"></div>
+      </div>
+    </div>
+
+    <div class="rule-card"><h3>Filtros de entrada</h3>
+      <div class="grid">
+        <div><label>Cuota mínima aceptable</label><input type="number" id="c_cuotamin" placeholder="ej. 1.35" step="0.01"></div>
+        <div><label>Minuto mínimo de entrada</label><input type="number" id="c_minmin" placeholder="ej. 30"></div>
+        <div><label>Minuto máximo de entrada</label><input type="number" id="c_minmax" placeholder="ej. 70"></div>
+      </div>
+    </div>
+
+    <div class="rule-card limits"><h3>Stop-loss y límites diarios</h3>
+      <div class="grid">
+        <div><label>Pérdidas para stop-loss — día laboral (lun-vie)</label><input type="number" id="c_stoplossbajo" placeholder="ej. 2"></div>
+        <div><label>Pérdidas para stop-loss — fin de semana (sáb-dom)</label><input type="number" id="c_stoplossigual" placeholder="ej. 3"></div>
+        <div><label>Máx. entradas entre semana</label><input type="number" id="c_limitesemana" placeholder="ej. 8"></div>
+        <div><label>Máx. entradas sábado y domingo</label><input type="number" id="c_limitefinde" placeholder="ej. 16"></div>
+        <div><label>Máx. partidos abiertos entre semana</label><input type="number" id="c_maxabiertossemana" placeholder="ej. 1"></div>
+        <div><label>Máx. partidos abiertos findes</label><input type="number" id="c_maxabiertosfinde" placeholder="ej. 2"></div>
+      </div>
+    </div>
+
+    <div class="rule-card" style="border-left-color:#a78bfa;"><h3 style="color:#a78bfa;">SCOUT CORE — motor prematch (Gambito v3.0)</h3>
+      <div class="grid">
+        <div><label>ρ Dixon-Coles</label><input type="number" id="c_scrho" placeholder="ej. -0.13" step="0.01"></div>
+        <div><label>Kelly fraccional</label><input type="number" id="c_sckelly" placeholder="ej. 0.25" step="0.01"></div>
+        <div><label>Tope de stake (% bankroll)</label><input type="number" id="c_scmaxstake" placeholder="ej. 0.03" step="0.001"></div>
+        <div><label>Edge mínimo para BET</label><input type="number" id="c_scedgemin" placeholder="ej. 0.04" step="0.001"></div>
+        <div><label>EV mínimo para BET</label><input type="number" id="c_scevmin" placeholder="ej. 0.04" step="0.001"></div>
+      </div>
+      <p style="color:var(--text-mute); font-size:11px; margin-top:8px;">ρ=-0.13 es el valor recomendado (paper Dixon-Coles 1997, rango -0.10 a -0.20). El Kelly y los stakes de este motor usan el mismo bankroll real de Bitácora — son independientes del stake fijo de Goal Hunter.</p>
+    </div>
+
+    <button class="btn" id="btnGuardarConfig" style="margin-top:14px;">Guardar configuración</button>
+
+    <div class="rule-card discard" style="margin-top:20px;">
+      <h3>Zona de pruebas / limpieza</h3>
+      <p>Si borraste un registro de prueba directamente en el Google Sheet, este dispositivo todavía lo tiene guardado localmente y lo va a volver a mostrar en la próxima sincronización. Usa este botón para olvidar la caché local de este dispositivo y traer de nuevo el estado real desde el Sheet.</p>
+      <button class="btn secondary small" id="btnResetLocal" style="margin-top:8px;">Borrar caché local y resincronizar</button>
+    </div>
+    <p style="color:var(--text-mute); font-size:11px; margin-top:12px;">Se guardan solo en este dispositivo (localStorage). Los <b>registros</b> viven en tu Google Sheet y se comparten entre todos tus dispositivos.</p>
+  </div>
+</section>
+
+<div id="editOverlay" style="display:none; position:fixed; inset:0; background:rgba(5,10,18,.85); z-index:100; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:var(--panel); border:1px solid var(--line); border-radius:8px; max-width:640px; width:100%; max-height:88vh; overflow-y:auto; padding:20px;">
+    <h2 style="font-size:15px; margin-bottom:4px;">Editar registro</h2>
+    <p style="color:var(--text-mute); font-size:11px; margin-bottom:14px;">Corrige lo que necesites. Solo se envían al Sheet los campos que cambies.</p>
+    <div id="editFields" class="grid"></div>
+    <div style="margin-top:16px; display:flex; gap:10px;">
+      <button class="btn secondary" id="editCancelar">Cancelar</button>
+      <button class="btn" id="editGuardar">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<footer>GAMBITO / GOAL HUNTER · motor Poisson local · stake fijo diario · registros sincronizados en tu Google Sheet</footer>
+
+<script>
+/* ============ CONFIG + STORAGE ============ */
+const DEFAULT_CONFIG = {
+  stakefijo:1, stakeminimo:0.3, bankrollinicio:8, metadiaria:120,
+  cuotamin:1.35, minmin:30, minmax:70,
+  stoplossbajo:2, stoplossigual:3,
+  limitesemana:8, limitefinde:16,
+  maxabiertossemana:1, maxabiertosfinde:2,
+  scRho:-0.13, scKelly:0.25, scMaxStakePct:0.03,
+  scEdgeMin:0.04, scEvMin:0.04
+};
+let CONFIG = {...DEFAULT_CONFIG};
+let RECORDS = [];
+let SCOUT_RECORDS = [];
+let PERFIL_LIGAS = [];
+let lastCalc = null;
+
+const CONFIG_KEY = 'gambito_config_v2';
+const ENDPOINT_KEY = 'gambito_endpoint_v1';
+const LOCAL_RECORDS_KEY = 'gambito_local_records_v1';
+const SC_RECORDS_KEY = 'gambito_sc_records_v1';
+const PL_KEY = 'gambito_perfil_ligas_v1';
+const OUTBOX_KEY = 'gambito_outbox_v1';
+let ENDPOINT = localStorage.getItem(ENDPOINT_KEY) || '';
+let OUTBOX = [];
+let syncing = false;
+
+const BITACORA_CACHE_KEY = 'gambito_bitacora_hoy_v1';
+let bitacoraHoyCache = null;
+try{ const s = localStorage.getItem(BITACORA_CACHE_KEY); if(s) bitacoraHoyCache = JSON.parse(s); }catch(e){}
+
+function bankrollInicioHoy(){
+  if(bitacoraHoyCache && bitacoraHoyCache.fecha===getHoy() && bitacoraHoyCache.bankrollInicial!=='' && bitacoraHoyCache.bankrollInicial!=null){
+    return +bitacoraHoyCache.bankrollInicial;
+  }
+  return CONFIG.bankrollinicio; // respaldo si aún no hay fila de Bitácora para hoy
+}
+function stakeSugeridoHoy(){
+  if(bitacoraHoyCache && bitacoraHoyCache.fecha===getHoy() && bitacoraHoyCache.stake!=='' && bitacoraHoyCache.stake!=null){
+    return +bitacoraHoyCache.stake;
+  }
+  return CONFIG.stakefijo; // respaldo si aún no hay fila de Bitácora para hoy
+}
+function metaDiaObjetivo(){
+  // La meta del día es el "BR final planificado" de Bitácora — bankroll inicial + stake del día,
+  // leído directo de la hoja. Si aún no hay fila de hoy, se aproxima con el respaldo local.
+  if(bitacoraHoyCache && bitacoraHoyCache.fecha===getHoy() && bitacoraHoyCache.planificado!=='' && bitacoraHoyCache.planificado!=null){
+    return +bitacoraHoyCache.planificado;
+  }
+  return bankrollInicioHoy() + stakeSugeridoHoy();
+}
+async function refreshBitacoraHoy(){
+  if(!ENDPOINT) return;
+  try{
+    const row = await apiGet('bitacora', {fecha: getHoy()});
+    if(row){
+      bitacoraHoyCache = {
+        fecha: getHoy(),
+        bankrollInicial: row['Bank roll inicial'],
+        stake: row['stake'],
+        planificado: row['BR final planificado'],
+        real: row['BR final real'],
+        reserva: row['Reserva'],
+        dif: row['Dif'],
+        dia: row['Dia']
+      };
+      localStorage.setItem(BITACORA_CACHE_KEY, JSON.stringify(bitacoraHoyCache));
+    }
+  }catch(e){ /* sin conexión: se queda con el último valor cacheado */ }
+}
+
+function ensureEndpoint(force=false){
+  if(!ENDPOINT || force){
+    const url = prompt('Pega la URL del Web App de Apps Script (Deploy > Web app):', ENDPOINT||'');
+    if(url && url.trim()){ ENDPOINT = url.trim(); localStorage.setItem(ENDPOINT_KEY, ENDPOINT); }
+  }
+  return ENDPOINT;
+}
+
+// apiGet/apiPost NUNCA piden la URL con prompt — solo intentan con la que ya está guardada.
+// Así la sincronización de fondo puede fallar en silencio sin interrumpirte con ventanas emergentes.
+async function parseApiResponse(res){
+  const raw = await res.text();
+  try{
+    return JSON.parse(raw);
+  }catch(e){
+    if(raw.trim().startsWith('<')){
+      throw new Error('El servidor respondió una página web, no datos — casi seguro la URL configurada está mal, apunta a un despliegue viejo/borrado, o el acceso no está en "Cualquiera". Revisa la URL en "Servidor / Sheet".');
+    }
+    throw new Error('Respuesta inesperada del servidor: '+raw.slice(0,120));
+  }
+}
+async function apiGet(action, params={}){
+  if(!ENDPOINT) throw new Error('sin endpoint');
+  const url = new URL(ENDPOINT); url.searchParams.set('action', action);
+  Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
+  const res = await fetch(url.toString()); return parseApiResponse(res);
+}
+async function apiPost(payload){
+  if(!ENDPOINT) throw new Error('sin endpoint');
+  const res = await fetch(ENDPOINT, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload)});
+  return parseApiResponse(res);
+}
+
+/* ============ REGISTRO INCREMENTAL OFFLINE-FIRST ============
+   1. Cada creación/cierre se guarda YA MISMO en este dispositivo (localStorage) y se
+      refleja de inmediato en pantalla — nunca depende de tener internet en ese instante.
+   2. En paralelo, se intenta enviar al Google Sheet. Si hay internet, sincroniza al toque.
+   3. Si falla (sin señal, Wi-Fi caído, Sheet inalcanzable), la operación queda en una
+      "bandeja de salida" (outbox) guardada en este dispositivo.
+   4. La bandeja se reintenta sola: al recuperar conexión (evento 'online'), cada 30s
+      mientras la consola está abierta, y al volver a abrir la app. También hay un botón
+      manual "Sincronizar ahora".
+   5. Nada se pierde: mientras no borres los datos del navegador en ese dispositivo,
+      el registro persiste local aunque nunca llegue a sincronizar. */
+
+function loadLocalCache(){
+  try{ const s = localStorage.getItem(LOCAL_RECORDS_KEY); if(s) RECORDS = JSON.parse(s); }catch(e){}
+  try{ const s = localStorage.getItem(SC_RECORDS_KEY); if(s) SCOUT_RECORDS = JSON.parse(s); }catch(e){}
+  try{ const s = localStorage.getItem(PL_KEY); if(s) PERFIL_LIGAS = JSON.parse(s); }catch(e){}
+  try{ const s = localStorage.getItem(OUTBOX_KEY); if(s) OUTBOX = JSON.parse(s); }catch(e){}
+}
+function saveLocalCache(){
+  try{
+    localStorage.setItem(LOCAL_RECORDS_KEY, JSON.stringify(RECORDS));
+    localStorage.setItem(SC_RECORDS_KEY, JSON.stringify(SCOUT_RECORDS));
+    localStorage.setItem(PL_KEY, JSON.stringify(PERFIL_LIGAS));
+    localStorage.setItem(OUTBOX_KEY, JSON.stringify(OUTBOX));
+  }catch(e){ console.error('No se pudo guardar localmente', e); }
+}
+
+function encolarOperacion(op){
+  if(!op.collection) op.collection = 'registros';
+  OUTBOX.push(op);
+  saveLocalCache();
+  flushOutbox(); // intento inmediato; si falla, queda encolado para los reintentos automáticos
+}
+
+let lastSyncError = '';
+
+/* ============ NO PISAR LO QUE EL USUARIO ESTÁ ESCRIBIENDO ============
+   renderAll() reconstruye el HTML desde cero — si el sync de fondo lo dispara
+   mientras hay texto sin guardar en un input/textarea/select, lo borra.
+   Mientras el foco esté en un campo, los renders de fondo se saltan solos. */
+let usuarioEscribiendo = false;
+document.addEventListener('focusin', (e)=>{
+  if(e.target.matches('input, textarea, select')) usuarioEscribiendo = true;
+});
+document.addEventListener('focusout', (e)=>{
+  if(e.target.matches('input, textarea, select')) usuarioEscribiendo = false;
+});
+function renderAllSafe(){ if(!usuarioEscribiendo) renderAll(); }
+
+async function flushOutbox(){
+  if(syncing) return;
+  if(!ENDPOINT){ lastSyncError = 'No hay URL del Web App configurada en este dispositivo.'; return; }
+  if(OUTBOX.length===0){ lastSyncError=''; return; }
+  syncing = true;
+  renderAllSafe();
+  const pendientes = [...OUTBOX];
+  const siguenPendientes = [];
+  let errorDetectado = '';
+  for(const op of pendientes){
+    try{
+      const collection = op.collection || 'registros';
+      if(op.type==='create') await apiPost({action:'create', collection, record:op.record});
+      else await apiPost({action:'update', collection, id:op.id, record:op.record});
+    }catch(e){
+      siguenPendientes.push(op); // sin conexión u otro fallo: se reintenta más tarde
+      errorDetectado = (e && e.message) ? e.message : String(e);
+    }
+  }
+  lastSyncError = errorDetectado;
+  OUTBOX = siguenPendientes;
+  saveLocalCache();
+  syncing = false;
+  renderAllSafe();
+}
+
+async function syncCollection(collection, getArr, setArr){
+  let cloud;
+  try{ cloud = await apiGet('list', {collection}); }
+  catch(e){
+    lastSyncError = (e && e.message) ? e.message : String(e);
+    console.warn('Sin conexión con el Sheet ('+collection+'), se sigue trabajando en local.', e);
+    return false;
+  }
+  const current = getArr();
+  const cloudIds = new Set(cloud.map(r=>r.id));
+  const merged = [...cloud];
+  current.forEach(local=>{ if(!cloudIds.has(local.id)) merged.push(local); }); // aún no sincronizados
+  OUTBOX.forEach(op=>{
+    if(op.collection===collection && op.type==='update'){
+      const t = merged.find(r=>r.id===op.id);
+      if(t) Object.assign(t, op.record); // aplica parches locales que el Sheet todavía no tiene
+    }
+  });
+  setArr(merged);
+  return true;
+}
+
+async function syncWithCloud(){
+  if(!ENDPOINT){ lastSyncError = 'No hay URL del Web App configurada en este dispositivo.'; return; }
+  const ok1 = await syncCollection('registros', ()=>RECORDS, (m)=>{RECORDS=m;});
+  const ok2 = await syncCollection('scout_core', ()=>SCOUT_RECORDS, (m)=>{SCOUT_RECORDS=m;});
+  const ok3 = await syncCollection('perfil_ligas', ()=>PERFIL_LIGAS, (m)=>{PERFIL_LIGAS=m;});
+  if(ok1 && ok2 && ok3) lastSyncError='';
+  saveLocalCache();
+  await flushOutbox();
+  await refreshBitacoraHoy();
+  renderAllSafe(); // refresca la pantalla aunque no hubiera nada pendiente por enviar — salvo que estés escribiendo
+}
+
+async function manualSync(){
+  if(!ENDPOINT){
+    ensureEndpoint(true);
+    if(!ENDPOINT){ alert('No pegaste ninguna URL. Sin eso, la app solo puede trabajar local — nada llega al Google Sheet.'); return; }
+  }
+  const pendientesAntes = OUTBOX.length;
+  await syncWithCloud();
+  const pendientesDespues = OUTBOX.length;
+  if(lastSyncError){
+    alert('No se pudo conectar con el Google Sheet.\\n\\nDetalle técnico: '+lastSyncError+'\\n\\nRevisa:\\n1) Que la URL termine en /exec (no en /dev).\\n2) Que hayas vuelto a "Implementar" el Apps Script después del último cambio de código (Gestionar implementaciones → editar → Nueva versión → Implementar) — guardar el código no alcanza.\\n3) Que el acceso esté configurado como "Cualquiera".\\n4) Tu conexión a internet.');
+  } else if(pendientesDespues>0){
+    alert(`Se conectó, pero quedaron ${pendientesDespues} registro(s) sin subir. Vuelve a intentar en unos segundos.`);
+  } else {
+    alert(`Sincronizado correctamente. ${pendientesAntes>0?pendientesAntes+' registro(s) enviados al Sheet.':'No había nada pendiente.'}`);
+  }
+  renderAll();
+}
+
+// Sync automático de fondo ELIMINADO a propósito: aunque estaba protegido con el
+// detector de foco, en formularios con varios campos seguidos (ej. cerrar un partido:
+// marcador, resultado, observación...) hay micro-instantes entre campo y campo donde
+// el foco "sale" antes de entrar al siguiente — si el timer caía justo ahí, igual
+// pisaba lo que no se había guardado. Ahora la sincronización SOLO ocurre: al abrir
+// la app, justo después de guardar/cerrar un registro tuyo, o con el botón "Sincronizar
+// ahora". Nunca por un temporizador de fondo mientras estás escribiendo en cualquier pestaña.
+
+async function loadAll(){
+  const saved = localStorage.getItem(CONFIG_KEY);
+  if(saved){ try{ CONFIG = {...DEFAULT_CONFIG, ...JSON.parse(saved)}; }catch(e){} }
+  applyConfigToForm();
+  loadLocalCache();          // 1) instantáneo, funciona sin internet
+  renderAll();
+  ensureEndpoint();          // pide la URL solo si nunca se configuró en este dispositivo
+  await syncWithCloud();     // 2) intenta traer/enviar lo pendiente si hay señal
+  refreshStakeDefault();
+  renderAll();
+  renderPerfilLigaWidgets();
+}
+function saveConfig(){ localStorage.setItem(CONFIG_KEY, JSON.stringify(CONFIG)); }
+
+
+/* ============ TABS ============ */
+document.querySelectorAll('nav.tabs button').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tabpanel').forEach(p=>p.style.display='none');
+    document.getElementById('tab-'+btn.dataset.tab).style.display='block';
+    if(btn.dataset.tab==='metas'){ await refreshBitacoraHoy(); }
+    renderAll();
+  });
+});
+document.getElementById('f_evento_analisis').addEventListener('change', (e)=>{
+  document.getElementById('eventoDetalleWrap').style.display = e.target.value==='Ninguno' ? 'none' : 'grid';
+});
+document.getElementById('f_mercado').addEventListener('change', (e)=>{
+  const v = e.target.value;
+  document.getElementById('selWrap').style.display = (v==='Ganador del partido'||v==='Empata o gana') ? 'block':'none';
+});
+
+function refreshStakeDefault(){
+  document.getElementById('f_stake').value = stakeFijoDelDia().toFixed(2);
+  const info = document.getElementById('stakeFuenteInfo');
+  if(info){
+    const deBitacora = bitacoraHoyCache && bitacoraHoyCache.fecha===getHoy() && bitacoraHoyCache.stake!=='' && bitacoraHoyCache.stake!=null;
+    info.innerHTML = deBitacora
+      ? `<span style="color:var(--green);">● desde Bitácora, día ${bitacoraHoyCache.dia}</span>`
+      : `<span style="color:var(--amber);">● respaldo de Config (sin fila de Bitácora para hoy — ve a Metas → "Activar hoy en Bitácora")</span>`;
+  }
+}
+const STAKE_DIA_KEY = 'gambito_stake_dia_v1';
+document.getElementById('btnRecalcularStake').addEventListener('click', async ()=>{
+  localStorage.removeItem(STAKE_DIA_KEY); // rompe el candado a mano
+  await refreshBitacoraHoy();              // trae Bitácora fresca
+  refreshStakeDefault();                   // vuelve a fijar el candado, ahora con el dato correcto
+});
+function stakeFijoDelDia(){
+  // El stake del día se fija UNA sola vez que venga de Bitácora (dato real) y ya no se
+  // toca en todo el día. Si la primera vez se fijó con el respaldo de Config porque
+  // Bitácora aún no había cargado, se permite UNA corrección automática en cuanto el
+  // dato real esté disponible — pero una vez fijado con dato real, no vuelve a moverse.
+  let cache = null;
+  try{ const s = localStorage.getItem(STAKE_DIA_KEY); if(s) cache = JSON.parse(s); }catch(e){}
+  const bitacoraDisponible = bitacoraHoyCache && bitacoraHoyCache.fecha===getHoy() && bitacoraHoyCache.stake!=='' && bitacoraHoyCache.stake!=null;
+
+  if(cache && cache.fecha===getHoy()){
+    if(cache.fuente==='bitacora') return +cache.valor; // ya fijado con dato real: no se toca
+    if(bitacoraDisponible){ // estaba con respaldo, pero ya hay dato real: se corrige una vez
+      const valor = +bitacoraHoyCache.stake;
+      localStorage.setItem(STAKE_DIA_KEY, JSON.stringify({fecha:getHoy(), valor, fuente:'bitacora'}));
+      return valor;
+    }
+    return +cache.valor; // sigue sin Bitácora disponible, mantiene el respaldo
+  }
+  const valor = bitacoraDisponible ? +bitacoraHoyCache.stake : CONFIG.stakefijo;
+  localStorage.setItem(STAKE_DIA_KEY, JSON.stringify({fecha:getHoy(), valor, fuente: bitacoraDisponible?'bitacora':'respaldo'}));
+  return valor;
+}
+
+/* ============ DÍA / SEMANA — REGLAS OPERATIVAS ============ */
+const SESGOS = [
+  'Confirmación','Exceso de confianza','FOMO','Aversión a la pérdida','Persecución de pérdidas',
+  'Ilusión de control','Impaciencia','Necesidad de acción','Anclaje','Disponibilidad','Escalada del compromiso'
+];
+function renderSesgosCheckboxes(prefix, extra=''){
+  return SESGOS.map((s,i)=>`
+    <label style="display:flex; gap:6px; align-items:center; text-transform:none; letter-spacing:0; font-size:11.5px; color:var(--text-dim); padding:2px 0;">
+      <input type="checkbox" class="${prefix}-sesgo" data-sesgo="${s}" id="${prefix}_${extra}_${i}"><span>${s}</span>
+    </label>`).join('');
+}
+function leerSesgosMarcados(prefix, extra=''){
+  return Array.from(document.querySelectorAll(`.${prefix}-sesgo[id^="${prefix}_${extra}_"]`))
+    .filter(cb=>cb.checked).map(cb=>cb.dataset.sesgo).join(', ');
+}
+
+function parseFraccion(str){
+  if(!str) return null;
+  const m = String(str).trim().match(/^(\d+)\s*\/\s*(\d+)$/);
+  if(!m) return null;
+  const num = +m[1], den = +m[2];
+  if(den<=0) return null;
+  return { num, den, pct: (num/den)*100 };
+}
+
+const TZ_ECUADOR = 'America/Guayaquil';
+const DIAS_SEMANA = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const ESCENARIO_A_PATRON = {
+  'Favorito atascado en 0-0': 'P1 Favorito atascado',
+  'Marcador prestado': 'P2 Marcador prestado',
+  'Empate motivado — 1-1': 'P12 Empate motivado',
+  'Empate motivado — 2-2': 'P12 Empate motivado',
+  'Superioridad numérica del favorito': 'P3 Roja + dominio',
+  'Dominio extremo unilateral': 'P13 Dominio extremo unilateral',
+  'Otro': '' // sin autoselección — lo elige el usuario a mano
+};
+document.getElementById('f_escenario').addEventListener('change', (e)=>{
+  const patron = ESCENARIO_A_PATRON[e.target.value];
+  if(patron){ document.getElementById('f_patron').value = patron; }
+});
+
+function diaSemanaDeFecha(fechaStr){
+  if(!fechaStr) return '';
+  const partes = fechaStr.split('-').map(Number);
+  if(partes.length<3 || partes.some(isNaN)) return '';
+  const [y,m,d] = partes;
+  const dt = new Date(Date.UTC(y, m-1, d, 12)); // mediodía UTC: evita que un huso horario corra el día
+  return DIAS_SEMANA[dt.getUTCDay()];
+}
+function getHoy(){
+  // Fecha de HOY en huso horario de Ecuador, sin importar el huso del dispositivo.
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ_ECUADOR, year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
+}
+function esFinde(){
+  const wd = new Intl.DateTimeFormat('en-US', { timeZone: TZ_ECUADOR, weekday:'short' }).format(new Date());
+  return wd==='Sat' || wd==='Sun';
+}
+function computeDaily(){
+  const hoy = getHoy();
+  const hoyRecs = RECORDS.filter(r=>r.fecha===hoy);
+  const cerradosHoy = hoyRecs.filter(r=>r.estado==='Cerrado');
+  const plHoy = cerradosHoy.reduce((s,r)=>s+(+r.pl||0),0);
+  const perdidasHoy = cerradosHoy.filter(r=>r.resultado==='Perdida').length;
+  const bankrollInicio = bankrollInicioHoy();
+  const bankrollActual = bankrollInicio + plHoy;
+  const underwater = bankrollActual < bankrollInicio; // se conserva solo como dato informativo, ya no decide el límite
+  const finde = esFinde();
+  const limitePerdidas = finde ? CONFIG.stoplossigual : CONFIG.stoplossbajo; // 2 entre semana, 3 sábado/domingo
+  const stopLossActivo = perdidasHoy >= limitePerdidas;
+  const metaDia = metaDiaObjetivo();
+  const metaAlcanzada = bankrollActual >= metaDia;
+  const limiteEntradasDia = finde ? CONFIG.limitefinde : CONFIG.limitesemana;
+  const maxAbiertos = finde ? CONFIG.maxabiertosfinde : CONFIG.maxabiertossemana;
+  const entradasHoy = hoyRecs.length;
+  const abiertosActuales = RECORDS.filter(r=>r.estado==='Abierto').length;
+  return {
+    hoy, plHoy, perdidasHoy, bankrollInicio, bankrollActual, metaDia, underwater, limitePerdidas, stopLossActivo, metaAlcanzada,
+    finde, limiteEntradasDia, maxAbiertos, entradasHoy, abiertosActuales,
+    limiteEntradasAlcanzado: entradasHoy>=limiteEntradasDia,
+    limiteAbiertosAlcanzado: abiertosActuales>=maxAbiertos
+  };
+}
+
+/* ============ MOTOR DE CÁLCULO (Poisson local) ============ */
+function poissonPMF(k, lambda){ return Math.exp(-lambda) * Math.pow(lambda,k) / factorial(k); }
+function factorial(n){ let f=1; for(let i=2;i<=n;i++) f*=i; return f; }
+function poissonCDF(k, lambda){ let s=0; for(let i=0;i<=k;i++) s+=poissonPMF(i,lambda); return s; }
+function projectRemaining(xg, minutoActual){
+  if(minutoActual<=0) return 0;
+  const rate = xg / minutoActual;
+  return Math.max(0, rate * (90 - minutoActual));
+}
+function outcomeMatrix(scoreHome, scoreAway, lamHomeRem, lamAwayRem, maxAdd=6){
+  let pHome=0, pDraw=0, pAway=0;
+  const distH=[], distA=[];
+  for(let i=0;i<=maxAdd;i++){ distH.push(poissonPMF(i,lamHomeRem)); distA.push(poissonPMF(i,lamAwayRem)); }
+  for(let i=0;i<=maxAdd;i++) for(let j=0;j<=maxAdd;j++){
+    const p = distH[i]*distA[j]; const fh=scoreHome+i, fa=scoreAway+j;
+    if(fh>fa) pHome+=p; else if(fh===fa) pDraw+=p; else pAway+=p;
+  }
+  return {pHome, pDraw, pAway};
+}
+
+/* ============ SCOUT CORE — Gambito v3.0 (prematch, goles/1X2/O-U/BTTS) ============
+   Fórmulas trasladadas literalmente de tus manuales Gambito_v3_Sistema_Completo.
+   Todo corre local en JS, sin IA ni internet, con los mismos pasos que le pedías a Opus. */
+
+function dixonColesTau(x, y, lam, mu, rho){
+  if(x===0 && y===0) return 1 - (lam*mu*rho);
+  if(x===0 && y===1) return 1 + (lam*rho);
+  if(x===1 && y===0) return 1 + (mu*rho);
+  if(x===1 && y===1) return 1 - rho;
+  return 1.0;
+}
+function dixonColesMatrix(lamL, lamV, rho, maxGoals=7){
+  const P = [];
+  for(let i=0;i<=maxGoals;i++){ P.push([]); for(let j=0;j<=maxGoals;j++) P[i].push(poissonPMF(i,lamL)*poissonPMF(j,lamV)); }
+  for(let x=0;x<2;x++) for(let y=0;y<2;y++) P[x][y] *= dixonColesTau(x,y,lamL,lamV,rho);
+  let total=0; for(let i=0;i<=maxGoals;i++) for(let j=0;j<=maxGoals;j++) total+=P[i][j];
+  for(let i=0;i<=maxGoals;i++) for(let j=0;j<=maxGoals;j++) P[i][j]/=total;
+  return P;
+}
+function dcMarketProbs(P, maxGoals=7){
+  let pLocal=0,pEmpate=0,pVisitante=0,over15=0,over25=0,over35=0,bttsSi=0;
+  for(let i=0;i<=maxGoals;i++) for(let j=0;j<=maxGoals;j++){
+    const p=P[i][j];
+    if(i>j) pLocal+=p; else if(i===j) pEmpate+=p; else pVisitante+=p;
+    if(i+j>=2) over15+=p; if(i+j>=3) over25+=p; if(i+j>=4) over35+=p;
+    if(i>=1 && j>=1) bttsSi+=p;
+  }
+  return {pLocal,pEmpate,pVisitante,over15,over25,over35,bttsSi,bttsNo:1-bttsSi,under25:1-over25};
+}
+
+// PASO 1: lambda base, blend forma 70% / temporada 30% (o el que esté disponible)
+function blendXG(forma, temporada, pesoForma=0.70){
+  const f = forma!==''&&forma!=null ? +forma : null;
+  const t = temporada!==''&&temporada!=null ? +temporada : null;
+  if(f!==null && t!==null) return f*pesoForma + t*(1-pesoForma);
+  if(f!==null) return f;
+  if(t!==null) return t;
+  return null;
+}
+function scBuildBaseLambdas(inp){
+  const atkL = blendXG(inp.formaLocalAnotados, inp.tempLocalAnotados);
+  const atkV = blendXG(inp.formaVisitanteAnotados, inp.tempVisitanteAnotados);
+  const defL = blendXG(inp.formaLocalRecibidos, inp.tempLocalRecibidos); // lo que recibe el local
+  const defV = blendXG(inp.formaVisitanteRecibidos, inp.tempVisitanteRecibidos); // lo que recibe el visitante
+  if(atkL===null||atkV===null||defL===null||defV===null) return null;
+  const lamL = (atkL + defV)/2;
+  const lamV = (atkV + defL)/2;
+  return {lamL, lamV, atkL, atkV, defL, defV};
+}
+// PASO 2: momentum diferencial por puntos últimos 5
+function scMomentum(lamL, lamV, ptsL, ptsV, log){
+  if(ptsL===''||ptsV===''||ptsL==null||ptsV==null) return {lamL, lamV};
+  const diff = (+ptsL) - (+ptsV);
+  const abs = Math.abs(diff);
+  let pct = abs<=3 ? 0.02 : abs<=6 ? 0.05 : 0.10;
+  if(diff===0) pct = 0;
+  let nl=lamL, nv=lamV;
+  if(diff>0){ nl=lamL*(1+pct); nv=lamV*(1-pct); }
+  else if(diff<0){ nl=lamL*(1-pct); nv=lamV*(1+pct); }
+  if(pct>0) log.push(`Momentum: diff ${diff}pts → ${diff>0?'local':'visitante'} +${(pct*100).toFixed(0)}%, rival −${(pct*100).toFixed(0)}%`);
+  return {lamL:nl, lamV:nv};
+}
+// PASO 3: ajustes de contexto
+function scContexto(lamL, lamV, inp, log){
+  let nl=lamL, nv=lamV;
+  const susp = {'0':0,'1':-0.06,'2+':-0.10};
+  if(susp[inp.suspLocal]){ nl*=(1+susp[inp.suspLocal]); log.push(`Suspensiones local (${inp.suspLocal}): ${(susp[inp.suspLocal]*100).toFixed(0)}%`); }
+  if(susp[inp.suspVisitante]){ nv*=(1+susp[inp.suspVisitante]); log.push(`Suspensiones visitante (${inp.suspVisitante}): ${(susp[inp.suspVisitante]*100).toFixed(0)}%`); }
+  if(inp.motivacion==='local'){ nl*=1.04; nv*=0.96; log.push('Motivación diferencial: local +4%, visitante −4%'); }
+  else if(inp.motivacion==='visitante'){ nv*=1.04; nl*=0.96; log.push('Motivación diferencial: visitante +4%, local −4%'); }
+  if(inp.sedeNeutral){ nl*=0.95; log.push('Sede neutral: local −5% (sin ventaja de localía)'); }
+  if(inp.suerteLocal!=='' && inp.suerteLocal!=null){
+    const s=+inp.suerteLocal;
+    if(s>10){ nl*=0.95; log.push(`Suerte xG local +${s}% → regresión −5%`); }
+    else if(s<-10){ nl*=1.03; log.push(`Suerte xG local ${s}% → regresión +3%`); }
+  }
+  if(inp.suerteVisitante!=='' && inp.suerteVisitante!=null){
+    const s=+inp.suerteVisitante;
+    if(s>10){ nv*=0.95; log.push(`Suerte xG visitante +${s}% → regresión −5%`); }
+    else if(s<-10){ nv*=1.03; log.push(`Suerte xG visitante ${s}% → regresión +3%`); }
+  }
+  return {lamL:nl, lamV:nv};
+}
+// PASO 6: veto por movimiento de cuota (solo 1X2, es lo que documenta el manual)
+function scVetoMovimiento(cuotaApertura, cuotaActual){
+  if(!cuotaApertura || !cuotaActual) return null;
+  return ((cuotaApertura - cuotaActual)/cuotaApertura)*100; // positivo = esa cuota bajó (dinero entró ahí)
+}
+// PASO 8: Kelly fraccional con tope y piso
+function scKellyStake(edge, cuota, bankroll, kellyFraction, maxStakePct){
+  const b = cuota - 1;
+  if(b<=0) return 0;
+  const kellyFull = edge/b;
+  const kellyFrac = Math.max(0, kellyFull) * kellyFraction;
+  const stakeBruto = bankroll * kellyFrac;
+  return Math.min(Math.max(stakeBruto, 0.50), bankroll*maxStakePct);
+}
+
+function calcular(){
+  const minuto = +document.getElementById('f_minuto').value;
+  const pos1 = +document.getElementById('f_pos1').value || 0;
+  const pos2 = +document.getElementById('f_pos2').value || 0;
+  const tiros1 = +document.getElementById('f_tiros1').value || 0;
+  const tiros2 = +document.getElementById('f_tiros2').value || 0;
+  const scoreEntrada = document.getElementById('f_score_entrada_l').value + '-' + document.getElementById('f_score_entrada_v').value;
+  const cuota = +document.getElementById('f_cuota').value;
+  const mercado = document.getElementById('f_mercado').value;
+  const favorito = document.getElementById('f_favorito').value;
+  const lluvia = document.getElementById('f_lluvia').checked;
+  const rojaPrevia = document.getElementById('f_roja_previa').checked;
+  const sofascoreOk = document.getElementById('f_sofascore').checked;
+  const flashscoreOk = document.getElementById('f_flashscore').checked;
+  const overlyzerEstado = document.getElementById('f_overlyzer').value;
+  const alineacionOk = document.getElementById('f_alineacion_ok').checked;
+  const h00l = parseFraccion(document.getElementById('f_h_00_l').value);
+  const hNoMarcoL = parseFraccion(document.getElementById('f_h_nomarco_l').value);
+  const h00v = parseFraccion(document.getElementById('f_h_00_v').value);
+  const hNoMarcoV = parseFraccion(document.getElementById('f_h_nomarco_v').value);
+  const confianza = +document.getElementById('f_confianza').value || 0;
+
+  const scoreLValido = document.getElementById('f_score_entrada_l').value !== '';
+  const scoreVValido = document.getElementById('f_score_entrada_v').value !== '';
+  const escenario = document.getElementById('f_escenario').value;
+  if(!escenario){
+    document.getElementById('decisionOut').innerHTML = '<p style="color:var(--red); margin-top:12px; font-size:12px;">Elige el Escenario de entrada arriba antes de seguir — es tu prefiltro, no se puede saltar.</p>';
+    document.getElementById('btnGuardar').disabled = true;
+    return;
+  }
+  if(!minuto || !cuota || !scoreLValido || !scoreVValido){
+    document.getElementById('decisionOut').innerHTML = '<p style="color:var(--red); margin-top:12px; font-size:12px;">Completa minuto, score al entrar (local y visitante) y cuota antes de calcular.</p>';
+    document.getElementById('btnGuardar').disabled = true;
+    return;
+  }
+  const [sh, sa] = scoreEntrada.split('-').map(n=>parseInt(n.trim())||0);
+  const d = computeDaily();
+
+  // Checklist de reglas — 100% tu análisis y tus checks. Sin modelo estadístico,
+  // sin probabilidad, sin edge: Goal Hunter es evaluación manual pura.
+  const marcadoresValidos = ['0-0','0-1','1-0','1-1'];
+  const marcadorOk = marcadoresValidos.includes(`${sh}-${sa}`);
+  let favoritoOk = true;
+  if(favorito==='Local') favoritoOk = sh<=sa;
+  else if(favorito==='Visitante') favoritoOk = sa<=sh;
+  const dominio1 = pos1>60 && tiros1>tiros2;
+  const dominio2 = pos2>60 && tiros2>tiros1;
+  const minutoOk = minuto>=CONFIG.minmin && minuto<=CONFIG.minmax;
+  const cuotaOk = cuota>=CONFIG.cuotamin;
+  const h00Objetivo = favorito==='Visitante' ? h00v : h00l;
+  const hNoMarcoObjetivo = favorito==='Visitante' ? hNoMarcoV : hNoMarcoL;
+  const h00Ok = h00Objetivo===null ? true : h00Objetivo.pct <= 25;
+  const hNoMarcoOk = hNoMarcoObjetivo===null ? true : hNoMarcoObjetivo.pct <= 25;
+  const rojaOk = mercado==='Tarjeta roja' ? true : !rojaPrevia;
+  const overlyzerOk = overlyzerEstado==='Sostenido 10-15min';
+  const confianzaOk = confianza>=4;
+
+  const checks = [
+    {label:`Marcador válido para entrada (${marcadoresValidos.join(', ')})`, pass: marcadorOk},
+    {label:'Favorito no va ganando (pierde o empata)', pass: favoritoOk},
+    {label:'Un equipo domina posesión (>60%) y tiros al arco', pass: dominio1||dominio2},
+    {label:`Equipo objetivo no es especialista en 0-0 (histórico ≤25%${h00Objetivo?` — actual ${h00Objetivo.num}/${h00Objetivo.den} = ${h00Objetivo.pct.toFixed(0)}%`:''})`, pass: h00Ok},
+    {label:`Equipo objetivo no es "equipo que no anota" (histórico sin marcar ≤25%${hNoMarcoObjetivo?` — actual ${hNoMarcoObjetivo.num}/${hNoMarcoObjetivo.den} = ${hNoMarcoObjetivo.pct.toFixed(0)}%`:''})`, pass: hNoMarcoOk},
+    {label:'Verificado en Sofascore', pass: sofascoreOk},
+    {label:'Verificado en Flashscore', pass: flashscoreOk},
+    {label:'Overlyzer: presión sostenida ≥10-15 min (no pico aislado)', pass: overlyzerOk},
+    {label:'Alineación confirmada — titulares en cancha, sin bajas clave (no amistoso con suplentes)', pass: alineacionOk},
+    {label: mercado==='Tarjeta roja' ? 'Tarjeta roja es el catalizador esperado de esta entrada' : 'Sin tarjeta roja previa que invalide la entrada', pass: rojaOk},
+    {label:`Minuto dentro de ventana (${CONFIG.minmin}-${CONFIG.minmax})`, pass: minutoOk},
+    {label:`Cuota ≥ mínima aceptable (${CONFIG.cuotamin})`, pass: cuotaOk},
+    {label:'Sin lluvia fuerte / cancha pesada', pass: !lluvia},
+    {label:'Confianza propia del análisis ≥ 4/5', pass: confianzaOk},
+  ];
+  const cumpleTodos = checks.every(c=>c.pass);
+
+  let verdictClass='no', verdictText='NO ENTRAR — no cumple el checklist';
+  if(d.stopLossActivo){ verdictClass='no'; verdictText=`STOP-LOSS ACTIVO (${d.perdidasHoy} pérdidas hoy, bankroll bajo el inicio) — no operar más hoy`; }
+  else if(d.limiteEntradasAlcanzado){ verdictClass='no'; verdictText=`LÍMITE DE ENTRADAS DEL DÍA ALCANZADO (${d.entradasHoy}/${d.limiteEntradasDia})`; }
+  else if(d.limiteAbiertosAlcanzado){ verdictClass='no'; verdictText=`MÁXIMO DE PARTIDOS ABIERTOS SIMULTÁNEOS ALCANZADO (${d.abiertosActuales}/${d.maxAbiertos})`; }
+  else if(cumpleTodos){ verdictClass='go'; verdictText='ENTRA — checklist completo, criterio tuyo confirmado'; }
+  else { verdictClass='warn'; verdictText=`Faltan ${checks.filter(c=>!c.pass).length} punto(s) del checklist`; }
+
+  document.getElementById('decisionOut').innerHTML = `
+    <div class="decision-panel">
+      <h3>Checklist de reglas — ${mercado}</h3>
+      <ul class="checklist">${checks.map(c=>`<li class="${c.pass?'pass':'fail'}"><span class="dot"></span>${c.label}</li>`).join('')}</ul>
+      <h3 style="margin-top:14px;">Estado del día</h3>
+      <div class="metric-row"><span>Entradas hoy / límite</span><span>${d.entradasHoy} / ${d.limiteEntradasDia}${d.finde?' (finde)':''}</span></div>
+      <div class="metric-row"><span>Partidos abiertos / máximo</span><span>${d.abiertosActuales} / ${d.maxAbiertos}</span></div>
+      <div class="metric-row"><span>Pérdidas hoy / límite activo</span><span>${d.perdidasHoy} / ${d.limitePerdidas} (${d.finde?'fin de semana':'día laboral'})</span></div>
+      <div class="metric-row"><span>Bankroll actual vs. BR final planificado</span><span>$${d.bankrollActual.toFixed(2)} / $${d.metaDia.toFixed(2)}</span></div>
+      <div class="verdict ${verdictClass}">${verdictText}</div>
+    </div>
+  `;
+  lastCalc = {mercado, d};
+  document.getElementById('btnGuardar').disabled = d.stopLossActivo || d.limiteEntradasAlcanzado || d.limiteAbiertosAlcanzado;
+  refreshStakeDefault();
+}
+document.getElementById('btnCalcular').addEventListener('click', calcular);
+
+/* ============ GUARDAR NUEVO REGISTRO ============ */
+document.getElementById('formNuevo').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  if(!lastCalc){ calcular(); if(!lastCalc) return; }
+  const rec = {
+    id: 'g'+Date.now(), estado:'Abierto',
+    fecha: document.getElementById('f_fecha').value || getHoy(),
+    dia_semana: diaSemanaDeFecha(document.getElementById('f_fecha').value || getHoy()),
+    minuto_inicio_analisis: document.getElementById('f_minuto_inicio').value || '',
+    minuto_fin_analisis: document.getElementById('f_minuto_fin').value || '',
+    evento_durante_analisis: document.getElementById('f_evento_analisis').value,
+    evento_detalle: document.getElementById('f_evento_detalle').value.trim(),
+    notas_alineacion_gh: document.getElementById('f_notas_alineacion').value.trim(),
+    notas_motivacion_gh: document.getElementById('f_notas_motivacion').value.trim(),
+    minuto_entrada: +document.getElementById('f_minuto').value,
+    score_entrada: document.getElementById('f_score_entrada_l').value + '-' + document.getElementById('f_score_entrada_v').value,
+    partido: document.getElementById('f_partido').value.trim(),
+    liga: document.getElementById('f_liga').value.trim(),
+    favorito: document.getElementById('f_favorito').value,
+    cuota_prepartido: '', // campo retirado del formulario (confundía); columna se mantiene vacía por compatibilidad
+    posicion_tabla1: document.getElementById('f_pos_tabla1').value || '',
+    posicion_tabla2: document.getElementById('f_pos_tabla2').value || '',
+    partidos_revisados_1: (function(){ const f=parseFraccion(document.getElementById('f_h_00_l').value); return f?f.den:''; })(),
+    partidos_00_1: (function(){ const f=parseFraccion(document.getElementById('f_h_00_l').value); return f?f.num:''; })(),
+    pct_00_1: (function(){ const f=parseFraccion(document.getElementById('f_h_00_l').value); return f?f.pct.toFixed(1):''; })(),
+    partidos_revisados_2: (function(){ const f=parseFraccion(document.getElementById('f_h_00_v').value); return f?f.den:''; })(),
+    partidos_00_2: (function(){ const f=parseFraccion(document.getElementById('f_h_00_v').value); return f?f.num:''; })(),
+    pct_00_2: (function(){ const f=parseFraccion(document.getElementById('f_h_00_v').value); return f?f.pct.toFixed(1):''; })(),
+    nomarco_1: (function(){ const f=parseFraccion(document.getElementById('f_h_nomarco_l').value); return f?f.num:''; })(),
+    pct_nomarco_1: (function(){ const f=parseFraccion(document.getElementById('f_h_nomarco_l').value); return f?f.pct.toFixed(1):''; })(),
+    nomarco_2: (function(){ const f=parseFraccion(document.getElementById('f_h_nomarco_v').value); return f?f.num:''; })(),
+    pct_nomarco_2: (function(){ const f=parseFraccion(document.getElementById('f_h_nomarco_v').value); return f?f.pct.toFixed(1):''; })(),
+    lluvia: document.getElementById('f_lluvia').checked ? 'Sí' : 'No',
+    corners1: +document.getElementById('f_corners1').value||0,
+    tiros1: +document.getElementById('f_tiros1').value||0,
+    posesion1: +document.getElementById('f_pos1').value||0,
+    xg1: +document.getElementById('f_xg1').value||0,
+    corners2: +document.getElementById('f_corners2').value||0,
+    tiros2: +document.getElementById('f_tiros2').value||0,
+    posesion2: +document.getElementById('f_pos2').value||0,
+    xg2: +document.getElementById('f_xg2').value||0,
+    confianza: +document.getElementById('f_confianza').value||3,
+    mercado: document.getElementById('f_mercado').value,
+    escenario_entrada: document.getElementById('f_escenario').value,
+    patron_tipo: document.getElementById('f_patron').value,
+    cuota: +document.getElementById('f_cuota').value,
+    stake: +document.getElementById('f_stake').value || 0,
+    prob_estimada: '',
+    edge: '',
+    ev: '',
+    estrategia: document.getElementById('f_estrategia').value.trim(),
+    impulso_hubo: document.getElementById('f_impulso_hubo').checked ? 'Sí' : 'No',
+    impulso_pensamiento: document.getElementById('f_impulso_pensamiento').value.trim(),
+    impulso_sesgos: leerSesgosMarcados('impulso'),
+    check_sofascore: document.getElementById('f_sofascore').checked ? 'Sí' : 'No',
+    check_flashscore: document.getElementById('f_flashscore').checked ? 'Sí' : 'No',
+    check_overlyzer: document.getElementById('f_overlyzer').value,
+    check_tarjeta_roja_previa: document.getElementById('f_roja_previa').checked ? 'Sí' : 'No',
+    check_alineacion_ok: document.getElementById('f_alineacion_ok').checked ? 'Sí' : 'No',
+    minuto_gol:'', score_final:'', resultado:'', cuota_cierre:'', clv:'', pl:'', observacion:'', fecha_cierre:''
+  };
+  // Guardado local INMEDIATO — no depende de tener internet en este instante.
+  RECORDS.push(rec);
+  saveLocalCache();
+  encolarOperacion({type:'create', id:rec.id, record:rec, ts:Date.now()});
+  e.target.reset();
+  document.getElementById('f_fecha').value = getHoy();
+  document.getElementById('eventoDetalleWrap').style.display = 'none';
+  document.getElementById('decisionOut').innerHTML='';
+  lastCalc = null;
+  refreshStakeDefault();
+  renderAll();
+  document.querySelector('nav.tabs button[data-tab="abiertos"]').click();
+});
+
+/* ============ ABIERTOS ============ */
+function renderAbiertos(){
+  const wrap = document.getElementById('abiertosWrap');
+  const abiertos = RECORDS.filter(r=>r.estado==='Abierto');
+  if(abiertos.length===0){ wrap.innerHTML = '<div class="empty">No hay registros abiertos.</div>'; return; }
+  wrap.innerHTML = abiertos.map(r=>`
+    <div class="rule-card" style="border-left-color:var(--amber);">
+      <h3 style="color:var(--amber);">${r.partido} — ${r.liga} · min ${r.minuto_entrada} (${r.score_entrada}) ${OUTBOX.some(o=>o.id===r.id)?'<span style="color:var(--text-mute); font-size:10px;">· sin sincronizar</span>':''}</h3>
+      <p>${r.escenario_entrada||'—'} · cuota ${r.cuota} · stake $${r.stake}${r.patron_tipo?' · '+r.patron_tipo:''}</p>
+      <div class="row3" style="margin-top:8px;">
+        <div><label>Minuto del gol (si hubo)</label><input type="text" id="mg_${r.id}" placeholder="ej. 61"></div>
+        <div><label>Score final — Local</label><input type="number" id="sf_l_${r.id}" min="0" placeholder="ej. 1"></div>
+        <div><label>Score final — Visitante</label><input type="number" id="sf_v_${r.id}" min="0" placeholder="ej. 0"></div>
+      </div>
+      <div class="row2">
+        <div><label>Resultado</label>
+          <select id="res_${r.id}"><option value="Ganada">Ganada</option><option value="Perdida">Perdida</option><option value="Push">Push</option><option value="Cash out">Cash out</option><option value="Anulada">Anulada</option></select>
+        </div>
+        <div><label>P/L ($) — vacío = auto</label><input type="number" step="0.01" id="pl_${r.id}" placeholder="ej. 0.85 (vacío = auto)"></div>
+      </div>
+      <label>Cuota de cierre (opcional — normalmente solo si perdiste el pronóstico)</label>
+      <input type="number" step="0.001" id="cc_${r.id}" placeholder="ej. 4.20">
+      <label>Observación del resultado</label>
+      <input type="text" id="obs_${r.id}" placeholder="nota breve">
+
+      <div style="border-top:1px solid var(--line); margin-top:14px; padding-top:12px;">
+        <h4 style="color:#a78bfa; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px;">Reflexión posterior</h4>
+        <div class="row2">
+          <div><label>¿Seguí mi sistema?</label><select id="seg_${r.id}"><option value="Sí">Sí</option><option value="No">No</option></select></div>
+          <div><label>¿Volvería a tomarla sabiendo solo lo de antes?</label><select id="rep_${r.id}"><option value="Sí">Sí</option><option value="No">No</option></select></div>
+        </div>
+        <div class="row2">
+          <div><label>¿Rompí alguna regla?</label><select id="romp_${r.id}"><option value="No">No</option><option value="Sí">Sí</option></select></div>
+          <div><label>¿Cuál? (si aplica)</label><input type="text" id="cualregla_${r.id}" placeholder="ej. entré con doble stake"></div>
+        </div>
+        <label>¿Qué sesgo(s) dominó? (marca los que apliquen)</label>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:2px 10px; margin-top:4px;">${renderSesgosCheckboxes('reflexion', r.id)}</div>
+        <label style="margin-top:10px;">¿Qué aprendí? (una sola frase)</label>
+        <input type="text" id="aprend_${r.id}" placeholder="La lección concreta de esta apuesta">
+      </div>
+
+      <button class="btn small" style="margin-top:10px;" onclick="cerrarRegistro('${r.id}')">Registrar resultado y cerrar</button>
+    </div>
+  `).join('');
+}
+window.cerrarRegistro = function(id){
+  const r = RECORDS.find(x=>x.id===id);
+  if(!r) return;
+  const resultado = document.getElementById('res_'+id).value;
+  let pl = document.getElementById('pl_'+id).value;
+  if(pl===''){
+    if(resultado==='Ganada') pl = (r.stake*(r.cuota-1)).toFixed(2);
+    else if(resultado==='Perdida') pl = (-r.stake).toFixed(2);
+    else if(resultado==='Cash out'){
+      alert('Cash out no se calcula solo — escribe cuánto ganaste o perdiste realmente en el campo P/L (lo que recibiste de la venta, menos tu stake) y vuelve a intentar.');
+      return;
+    }
+    else pl = '0.00';
+  }
+  const cuotaCierre = document.getElementById('cc_'+id).value;
+  // CLV solo aplica a apuestas prematch (Scout Core) — Goal Hunter es en vivo, no se calcula aquí.
+
+  const seguiSistema = document.getElementById('seg_'+id).value;
+  const repetiria = document.getElementById('rep_'+id).value;
+  const rompiRegla = document.getElementById('romp_'+id).value;
+  const cualRegla = document.getElementById('cualregla_'+id).value.trim();
+  const sesgosReflexion = leerSesgosMarcados('reflexion', id);
+  const aprendizaje = document.getElementById('aprend_'+id).value.trim();
+  // Índice de Calidad de Decisión (0-4): +1 por cada señal saludable, sin importar el resultado.
+  const icd = (seguiSistema==='Sí'?1:0) + (rompiRegla==='No'?1:0) + (repetiria==='Sí'?1:0) + (sesgosReflexion===''?1:0);
+
+  const patch = {
+    minuto_gol: document.getElementById('mg_'+id).value,
+    score_final: document.getElementById('sf_l_'+id).value + '-' + document.getElementById('sf_v_'+id).value,
+    resultado, pl,
+    cuota_cierre: cuotaCierre || '',
+    clv: '',
+    observacion: document.getElementById('obs_'+id).value,
+    reflexion_seguiste_sistema: seguiSistema,
+    reflexion_rompiste_regla: rompiRegla,
+    reflexion_cual_regla: cualRegla,
+    reflexion_repetiria: repetiria,
+    reflexion_sesgos: sesgosReflexion,
+    reflexion_aprendizaje: aprendizaje,
+    icd_calidad: icd,
+    estado:'Cerrado', fecha_cierre: getHoy()
+  };
+  // Aplica el cierre local YA — visible al instante, sin esperar la red.
+  Object.assign(r, patch);
+  saveLocalCache();
+  encolarOperacion({type:'update', id, record:patch, ts:Date.now()});
+  renderAll();
+};
+
+/* ============ SCOUT CORE — cálculo, guardado y render ============ */
+let scLastCalc = null;
+
+function scGetVal(id){ const v=document.getElementById(id).value; return v===''?'':v; }
+
+/* ============ GENERADOR DE PROMPT SCOUT CORE ============ */
+/* ============ PERFIL DE LIGA — compartido entre Goal Hunter y Scout Core ============ */
+function normalizarLiga(s){ return (s||'').trim().toLowerCase(); }
+function buscarPerfilLiga(liga){
+  const key = normalizarLiga(liga);
+  if(!key) return null;
+  return PERFIL_LIGAS.find(p=>normalizarLiga(p.liga)===key) || null;
+}
+function construirPromptLiga(liga){
+  return `Actúa como analista de scouting competitivo especializado en estructura de ligas.
+Este perfil se usa como referencia estable dentro de Gambito — se guarda una sola vez
+por liga y se actualiza solo cuando algo estructural cambie, no antes de cada partido.
+
+Liga a analizar: ${liga||'[LIGA]'}
+
+Elabora un informe de consenso (analistas, prensa, entrenadores) — no predigas partidos
+específicos. Organiza en:
+
+1. Identidad: ritmo, intensidad, nivel físico/táctico, goles promedio, variabilidad entre equipos.
+2. Tendencias actuales: empates, goles al alza/baja, dominio local vs. visitante, remontadas,
+   tarjetas/expulsiones, arbitrajes polémicos — explica cada una brevemente.
+3. Equipos sobre e infravalorados mediáticamente, y por qué.
+4. Patrones psicológicos conocidos: relajarse tras marcar, remontar seguido, rendirse tras
+   recibir gol, fortaleza local vs. visitante.
+5. Estilos predominantes por equipo: posesión, transición, presión alta, bloque bajo,
+   directo, balón parado.
+6. Árbitros con patrones marcados (tarjetas, penales, dejar jugar).
+7. Factores externos relevantes: clima, viajes, altura, césped artificial, calendario congestionado.
+8. Sesgos frecuentes del mercado de apuestas en esta liga específicamente.
+9. Variables que influyen pero no aparecen en estadísticas tradicionales.
+10. Errores típicos de un modelo basado solo en datos históricos, para ESTA liga.
+11. Resumen: las 5 características más importantes a tener presentes al analizar
+    cualquier partido de esta liga.
+
+No inventes información. Si algo no tiene consenso claro, indícalo.`;
+}
+function draftKeyLiga(liga){ return 'gambito_draft_liga_'+normalizarLiga(liga); }
+function guardarDraftLiga(liga){
+  const key = draftKeyLiga(liga);
+  const informe = document.getElementById('draftInforme_'+liga.replace(/[^a-zA-Z0-9]/g,'_'))?.value || '';
+  const resumen = document.getElementById('draftResumen_'+liga.replace(/[^a-zA-Z0-9]/g,'_'))?.value || '';
+  if(!informe && !resumen){ localStorage.removeItem(key); return; }
+  localStorage.setItem(key, JSON.stringify({informe, resumen, ts:Date.now()}));
+}
+function leerDraftLiga(liga){
+  try{ const s = localStorage.getItem(draftKeyLiga(liga)); return s ? JSON.parse(s) : null; }catch(e){ return null; }
+}
+function renderPerfilLigaWidget(containerId, ligaInputId){
+  const cont = document.getElementById(containerId);
+  if(!cont) return;
+  const liga = document.getElementById(ligaInputId).value.trim();
+  if(!liga){ cont.innerHTML = '<p style="color:var(--text-mute); font-size:11px; margin-top:8px;">Escribe la liga para buscar o generar su perfil.</p>'; return; }
+  const perfil = buscarPerfilLiga(liga);
+  if(perfil){
+    let dias = null;
+    if(perfil.fecha_actualizacion){
+      const d1 = new Date(perfil.fecha_actualizacion+'T00:00:00'), d2 = new Date(getHoy()+'T00:00:00');
+      dias = Math.floor((d2-d1)/86400000);
+    }
+    const stale = dias!==null && dias>90;
+    cont.innerHTML = `
+      <div class="rule-card ${stale?'limits':''}" style="border-left-color:${stale?'var(--amber)':'var(--teal)'}; margin-top:8px;">
+        <h3 style="color:${stale?'var(--amber)':'var(--teal)'};">Perfil de liga: ${perfil.liga}${stale?` — desactualizado (${dias} días)`:''}</h3>
+        <p style="white-space:pre-line; font-size:12px;">${perfil.resumen_clave||'(sin resumen — abre para completarlo)'}</p>
+        <button type="button" class="btn secondary small" onclick="abrirEdicion('${perfil.id}','perfil_ligas')">Ver / actualizar perfil completo</button>
+      </div>`;
+  } else {
+    const safeLiga = liga.replace(/'/g,"\\'");
+    const safeId = liga.replace(/[^a-zA-Z0-9]/g,'_');
+    const draft = leerDraftLiga(liga);
+    cont.innerHTML = `
+      <div class="rule-card limits" style="margin-top:8px;">
+        <h3>Sin perfil guardado para "${liga}"</h3>
+        <textarea id="promptLigaOut_${containerId}" rows="3" readonly style="width:100%; background:#0a121f; border:1px solid var(--line); color:var(--text-dim); border-radius:3px; padding:8px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; display:none;"></textarea>
+        <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+          <button type="button" class="btn secondary small" onclick="mostrarPromptLiga('${containerId}','${safeLiga}')">Generar prompt de liga</button>
+          <button type="button" class="btn secondary small" id="copiarLiga_${containerId}" style="display:none;">Copiar</button>
+        </div>
+        ${draft ? `<p style="color:var(--amber); font-size:10.5px; margin-top:8px;">● Recuperado un borrador que tenías sin guardar (${new Date(draft.ts).toLocaleTimeString()}).</p>` : ''}
+        <label style="margin-top:10px;">Informe completo (pega aquí lo que te devolvió la IA)</label>
+        <textarea id="draftInforme_${safeId}" rows="4" oninput="guardarDraftLiga('${safeLiga}')">${draft?draft.informe:''}</textarea>
+        <label>Resumen clave (tus 3-5 líneas de conclusión)</label>
+        <textarea id="draftResumen_${safeId}" rows="3" oninput="guardarDraftLiga('${safeLiga}')">${draft?draft.resumen:''}</textarea>
+        <button type="button" class="btn small" style="margin-top:8px;" onclick="guardarPerfilLigaInline('${safeLiga}')">Guardar perfil de liga</button>
+        <p style="color:var(--text-mute); font-size:10px; margin-top:6px;">Se autoguarda un borrador en este dispositivo mientras escribes — aunque recargues o salgas a copiar de Grok, no se pierde hasta que le des "Guardar".</p>
+      </div>`;
+  }
+}
+window.guardarPerfilLigaInline = function(liga){
+  const safeId = liga.replace(/[^a-zA-Z0-9]/g,'_');
+  const informe = document.getElementById('draftInforme_'+safeId).value.trim();
+  const resumen = document.getElementById('draftResumen_'+safeId).value.trim();
+  if(!informe && !resumen){ alert('Pega algo antes de guardar.'); return; }
+  const rec = { id:'pl'+Date.now(), liga, fecha_actualizacion:getHoy(), informe_completo:informe, resumen_clave:resumen };
+  PERFIL_LIGAS.push(rec);
+  saveLocalCache();
+  encolarOperacion({type:'create', id:rec.id, record:rec, collection:'perfil_ligas', ts:Date.now()});
+  localStorage.removeItem(draftKeyLiga(liga));
+  renderPerfilLigaWidgets();
+  alert('Perfil de liga guardado.');
+};
+window.mostrarPromptLiga = function(containerId, liga){
+  const out = document.getElementById('promptLigaOut_'+containerId);
+  out.value = construirPromptLiga(liga);
+  out.style.display = 'block';
+  const btnCopiar = document.getElementById('copiarLiga_'+containerId);
+  btnCopiar.style.display = 'inline-block';
+  btnCopiar.onclick = async ()=>{
+    try{ await navigator.clipboard.writeText(out.value); alert('Prompt copiado.'); }
+    catch(e){ out.select(); alert('No se pudo copiar automático — quedó seleccionado, usa Ctrl+C.'); }
+  };
+};
+function renderPerfilLigaWidgets(){
+  if(document.getElementById('ligaWidgetGH')) renderPerfilLigaWidget('ligaWidgetGH','f_liga');
+  if(document.getElementById('ligaWidgetSC')) renderPerfilLigaWidget('ligaWidgetSC','sc_liga');
+}
+
+/* ============ PROMPTS CUALITATIVOS COMPLEMENTARIOS (Scout Core) ============ */
+function localVisitanteFecha(prefix){
+  const partido = document.getElementById(prefix+'_partido').value.trim();
+  let local='[EQUIPO LOCAL]', visitante='[EQUIPO VISITANTE]';
+  // Tolerante a "vs", "Vs", "VS", "vs.", "v", "v.", "contra", "-", "–" con espacios variables alrededor.
+  const m = partido.match(/^(.+?)\s+(?:vs\.?|v\.?|contra|[-–—])\s+(.+)$/i);
+  if(m){ local = m[1].trim()||local; visitante = m[2].trim()||visitante; }
+  const fecha = document.getElementById(prefix+'_fecha').value || '[FECHA AAAA-MM-DD]';
+  const ligaEl = document.getElementById(prefix+'_liga');
+  const liga = ligaEl ? (ligaEl.value.trim() || '[LIGA]') : '[LIGA]';
+  return {local, visitante, fecha, liga};
+}
+function scLocalVisitanteFecha(){ return localVisitanteFecha('sc'); }
+function promptSentimiento(){
+  const {local, visitante, fecha} = scLocalVisitanteFecha();
+  return `Actúa como un observador cualitativo de conversación pública, no como analista cuantitativo.
+Este análisis es ruido de mercado, no una señal para apostar — no le des peso de dato duro.
+
+Revisa publicaciones recientes en X (últimos 10-20 minutos si es posible) sobre:
+${local} vs ${visitante} — ${fecha}
+
+Repórtame SOLO esto, en un párrafo corto por punto:
+
+1. Tono predominante hacia cada equipo (ej. confianza, resignación, euforia, ansiedad) —
+   una frase por equipo, sin porcentajes.
+2. 3-5 observaciones o citas representativas (parafraseadas, no textuales) que reflejen
+   la opinión dominante — busca especialmente comentarios AUTOCRÍTICOS de hinchas
+   (ej. "vamos ganando pero no confío", "nuestro equipo viene en mala racha").
+3. ¿Hubo un cambio notorio de narrativa en los últimos minutos? ¿Qué lo provocó?
+4. Sesgo de la conversación: ¿está dominada por hinchas de un lado, sarcasmo, memes,
+   cuentas automatizadas? Dilo en una frase.
+5. Tu propio nivel de confianza en este análisis: Alto / Medio / Bajo, y por qué.
+
+Si no hay suficiente actividad reciente para decir algo con sentido, dilo directamente
+en vez de rellenar con generalidades. No inventes citas ni cifras.`;
+}
+function promptAlineacion(prefix='sc'){
+  const {local, visitante, fecha} = localVisitanteFecha(prefix);
+  return `Actúa como analista de disponibilidad de plantillas. Usa fuentes recientes y confiables
+de X y prensa deportiva. Distingue SIEMPRE rumor de información confirmada, con tu
+nivel de confianza (Alto/Medio/Bajo) en cada dato. No inventes.
+
+Partido: ${local} vs ${visitante} — ${fecha}
+
+═══ BLOQUE LOCAL: ${local} ═══
+- Once probable y formación.
+- Bajas confirmadas: nombre, posición, motivo, impacto (Alto/Medio/Bajo).
+- Dudas/convocados con reserva.
+- Jugadores que regresan de lesión/sanción — ¿con ritmo completo o limitado?
+- Riesgo de rotación (calendario congestionado, competición internacional, etc.)
+- Impacto táctico neto de las ausencias (ej. menor presión alta, peor balón parado).
+- Índice de continuidad (1-10): qué tan parecido es el once esperado al ideal.
+
+═══ BLOQUE VISITANTE: ${visitante} ═══
+(mismos 7 puntos que el bloque local)
+
+═══ CIERRE ═══
+En 3 líneas: ¿qué equipo llega con plantilla más estable, y hay alguna ausencia que
+podría cambiar el partido de forma significativa?`;
+}
+function promptH2H(){
+  const {local, visitante} = scLocalVisitanteFecha();
+  return `Actúa como analista de historial de enfrentamientos directos. Usa fuentes confiables
+(prensa deportiva, bases de datos históricas). No inventes resultados que no puedas verificar.
+
+Enfrentamiento: ${local} vs ${visitante}
+
+1. Resultados de los últimos 5-10 enfrentamientos directos (fecha, resultado, sede).
+2. ¿Hay un patrón claro (uno domina históricamente al otro, muchos empates, siempre
+   partidos de pocos/muchos goles)?
+3. ¿Existe algún factor psicológico documentado en este cruce específico (rivalidad,
+   historial de nervios, un equipo que rinde peor de lo esperado contra el otro)?
+4. Tu nivel de confianza: Alto/Medio/Bajo, según cuántos enfrentamientos recientes encontraste.
+
+Si no hay suficiente historial reciente (equipos que rara vez se cruzan, cambio radical
+de plantillas), dilo directamente en vez de rellenar con generalidades.`;
+}
+function promptMotivacion(prefix='sc'){
+  const {local, visitante, fecha, liga} = localVisitanteFecha(prefix);
+  return `Actúa como analista de contexto competitivo. Usa información reciente y verificable
+(posición en tabla, calendario, competiciones paralelas). No inventes.
+
+Partido: ${local} vs ${visitante} — ${liga} — ${fecha}
+
+1. Posición actual en tabla de cada equipo, y qué se juega cada uno en este partido
+   específico (pelea por título, clasificación a copa, descenso, sin nada en juego).
+2. ¿Alguno tiene un partido importante (copa, torneo internacional) en los próximos
+   3-5 días que pueda motivar rotación o conservación de esfuerzo?
+3. ¿Hay algún factor extra de motivación (revancha, despedida de jugador, presión
+   de hinchada/directiva, cambio reciente de entrenador)?
+4. Conclusión en 2 líneas: ¿qué equipo tiene más en juego realmente en este partido?`;
+}
+function promptClima(){
+  const {local, visitante, fecha} = scLocalVisitanteFecha();
+  return `Busca el pronóstico del clima y estado de cancha para este partido específico.
+No inventes si no encuentras el dato — di que no está disponible.
+
+Partido: ${local} vs ${visitante} — ${fecha} — Sede: la del equipo local (${local})
+
+1. Pronóstico del clima a la hora del partido (lluvia, viento, temperatura, humedad).
+2. Estado de la cancha si hay información (césped en mal estado, recién resembrado,
+   artificial).
+3. ¿Alguno de estos factores suele afectar especialmente a alguno de los dos equipos
+   (estilo de juego que depende de superficie rápida, equipo que rinde peor con lluvia)?
+4. Nivel de confianza del pronóstico: Alto/Medio/Bajo (¿qué tan cerca está la fecha?).`;
+}
+
+const QUAL_PROMPTS = [
+  {key:'sentimiento', label:'Sentimiento en X (ruido, no señal)', build:()=>promptSentimiento()},
+  {key:'alineacion',  label:'Alineación y disponibilidad',        build:()=>promptAlineacion('sc')},
+  {key:'h2h',         label:'Historial de enfrentamientos (H2H)', build:()=>promptH2H()},
+  {key:'motivacion',  label:'Motivación contextual',               build:()=>promptMotivacion('sc')},
+  {key:'clima',       label:'Clima y estado de cancha',            build:()=>promptClima()},
+];
+const GH_QUAL_PROMPTS = [
+  {key:'gh_alineacion', label:'Alineación y disponibilidad', build:()=>promptAlineacion('f')},
+  {key:'gh_motivacion', label:'Motivación contextual',        build:()=>promptMotivacion('f')},
+];
+function renderQualPromptsInto(containerId, prompts){
+  const cont = document.getElementById(containerId);
+  if(!cont) return;
+  cont.innerHTML = prompts.map(p=>`
+    <div class="rule-card" style="margin-bottom:10px;">
+      <h3>${p.label}</h3>
+      <button type="button" class="btn secondary small" data-qual="${p.key}">Generar prompt</button>
+      <button type="button" class="btn secondary small" data-qualcopy="${p.key}" style="display:none;">Copiar</button>
+      <textarea id="qualOut_${p.key}" rows="4" readonly style="width:100%; margin-top:8px; background:#0a121f; border:1px solid var(--line); color:var(--text-dim); border-radius:3px; padding:8px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; display:none;"></textarea>
+    </div>
+  `).join('');
+  cont.querySelectorAll('[data-qual]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const cfg = prompts.find(p=>p.key===btn.dataset.qual);
+      const out = document.getElementById('qualOut_'+cfg.key);
+      out.value = cfg.build();
+      out.style.display = 'block';
+      cont.querySelector(`[data-qualcopy="${cfg.key}"]`).style.display = 'inline-block';
+    });
+  });
+  cont.querySelectorAll('[data-qualcopy]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const out = document.getElementById('qualOut_'+btn.dataset.qualcopy);
+      try{ await navigator.clipboard.writeText(out.value); alert('Prompt copiado — pégalo en Grok junto con lo que pida.'); }
+      catch(e){ out.select(); alert('No se pudo copiar automático — quedó seleccionado, usa Ctrl+C.'); }
+    });
+  });
+}
+function renderQualPrompts(){
+  renderQualPromptsInto('qualPromptsBox', QUAL_PROMPTS);
+  renderQualPromptsInto('ghQualPromptsBox', GH_QUAL_PROMPTS);
+}
+
+function construirPromptScoutCore(){
+  const {local, visitante, fecha} = localVisitanteFecha('sc');
+  const linkXgs = document.getElementById('sc_link_xgs').value.trim();
+  const linkSofa = document.getElementById('sc_link_sofa').value.trim();
+  const link1xbet = document.getElementById('sc_link_1xbet').value.trim();
+
+  return `Analiza este partido con Gambito
+Link xGScore:
+${linkXgs}
+Link SofaScore:
+${linkSofa}
+Link 1xBet:
+${link1xbet}
+Adjunto capturas de pantalla:
+- Captura 1: xGScore
+- Captura 2: SofaScore
+- Captura 3: 1xBet
+
+Eres un analista cuantitativo de apuestas deportivas. Tu único objetivo es recolectar
+datos reales y estructurarlos. NO hagas predicciones ni recomendaciones — solo datos.
+Usa las capturas adjuntas como fuente principal; si algo no aparece ahí, búscalo en
+internet con los links de arriba. Si de verdad no lo encuentras en ninguna fuente
+confiable, escribe null. NUNCA inventes ni redondees un número a ojo.
+
+PARTIDO A ANALIZAR: ${local} vs ${visitante} — ${fecha}
+
+Fuentes prioritarias por tipo de dato:
+- xG y xG en contra → Understat o FBref
+- Forma reciente y lesiones/bajas → SofaScore
+- Cuotas → 1xBet (o Pinnacle/OddsPortal si no la encuentras ahí)
+
+Devuélveme ÚNICAMENTE este objeto JSON, sin texto antes ni después, sin markdown,
+con estos nombres de campo EXACTOS (no los cambies ni los anides):
+
+{
+  "fecha": "${fecha}",
+  "liga": null,
+  "partido": "${local} vs ${visitante}",
+
+  "forma_l_anot": null,
+  "forma_l_rec": null,
+  "temp_l_anot": null,
+  "temp_l_rec": null,
+  "forma_v_anot": null,
+  "forma_v_rec": null,
+  "temp_v_anot": null,
+  "temp_v_rec": null,
+
+  "pts_l": null,
+  "pts_v": null,
+
+  "susp_l": null,
+  "susp_v": null,
+  "motivacion": null,
+  "sede_neutral": null,
+  "suerte_l": null,
+  "suerte_v": null,
+
+  "cuota_local": null,
+  "cuota_empate": null,
+  "cuota_visitante": null,
+  "cuota_over25": null,
+  "cuota_under25": null,
+  "cuota_btts_si": null,
+  "cuota_btts_no": null,
+  "apertura_local": null,
+  "apertura_visitante": null,
+
+  "xgs_local": null,
+  "xgs_empate": null,
+  "xgs_visitante": null,
+
+  "completitud_datos": null
+}
+
+Definición de cada campo:
+- forma_l_anot / forma_l_rec: xG anotado/recibido promedio del LOCAL, últimos 5-6 partidos
+- temp_l_anot / temp_l_rec: xG anotado/recibido promedio del LOCAL en toda la temporada
+- forma_v_* / temp_v_*: lo mismo para el VISITANTE
+- pts_l / pts_v: puntos obtenidos en los últimos 5 partidos (0-15)
+- susp_l / susp_v: bajas clave del equipo — "0", "1" o "2+"
+- motivacion: "ninguno", "local" o "visitante"
+- sede_neutral: "Sí" o "No"
+- suerte_l / suerte_v: % de sobre/infra-conversión de xG si está disponible, si no null
+- cuota_*: cuotas ACTUALES en el momento de la consulta
+- apertura_local / apertura_visitante: cuota de apertura pre-partido, si la fuente la muestra
+- xgs_local / xgs_empate / xgs_visitante: probabilidades del modelo de xGScore/Understat, en %
+- completitud_datos: tu propia estimación en % de cuántos campos lograste llenar con dato real
+
+Antes del JSON, si la completitud es menor al 60%, dilo explícitamente en una frase.`;
+}
+
+document.getElementById('btnGenerarPrompt').addEventListener('click', ()=>{
+  const texto = construirPromptScoutCore();
+  const out = document.getElementById('scPromptOut');
+  out.value = texto;
+  out.style.display = 'block';
+  document.getElementById('btnCopiarPrompt').style.display = 'inline-block';
+});
+document.getElementById('btnCopiarPrompt').addEventListener('click', async ()=>{
+  const out = document.getElementById('scPromptOut');
+  try{
+    await navigator.clipboard.writeText(out.value);
+    alert('Prompt copiado — pégalo en tu chat de IA junto con las 3 capturas.');
+  }catch(e){
+    out.select();
+    alert('No se pudo copiar automático (permiso del navegador). Ya lo dejé seleccionado — usa Ctrl+C / Cmd+C ahora.');
+  }
+});
+
+/* ============ IMPORTAR JSON EN SCOUT CORE ============ */
+document.getElementById('btnImportarSC').addEventListener('click', ()=>{
+  const txt = document.getElementById('scJsonImport').value.trim();
+  if(!txt){ alert('Pega primero el JSON.'); return; }
+  let data;
+  try{ data = JSON.parse(txt); }catch(e){ alert('Ese texto no es JSON válido: '+e.message); return; }
+  let aplicados = 0;
+  const noEncontrados = [];
+  Object.entries(data).forEach(([k,v])=>{
+    if(v===null || v===undefined) return; // deja el campo como está si la IA no lo encontró
+    const el = document.getElementById('sc_'+k);
+    if(!el){ noEncontrados.push(k); return; }
+    if(el.tagName==='SELECT'){
+      const vStr = String(v).toLowerCase();
+      const opt = Array.from(el.options).find(o=>o.value.toLowerCase()===vStr || o.textContent.toLowerCase().includes(vStr));
+      if(opt) el.value = opt.value;
+    } else {
+      el.value = v;
+    }
+    aplicados++;
+  });
+  alert(`Se rellenaron ${aplicados} campos.` + (noEncontrados.length ? `\n\nNo reconocidos (revísalos a mano): ${noEncontrados.join(', ')}` : '') + `\n\nRevisa los números antes de calcular.`);
+});
+
+function scCalcular(){
+  const inp = {
+    formaLocalAnotados: scGetVal('sc_forma_l_anot'), formaLocalRecibidos: scGetVal('sc_forma_l_rec'),
+    tempLocalAnotados: scGetVal('sc_temp_l_anot'), tempLocalRecibidos: scGetVal('sc_temp_l_rec'),
+    formaVisitanteAnotados: scGetVal('sc_forma_v_anot'), formaVisitanteRecibidos: scGetVal('sc_forma_v_rec'),
+    tempVisitanteAnotados: scGetVal('sc_temp_v_anot'), tempVisitanteRecibidos: scGetVal('sc_temp_v_rec'),
+    puntosL: scGetVal('sc_pts_l'), puntosV: scGetVal('sc_pts_v'),
+    suspLocal: document.getElementById('sc_susp_l').value, suspVisitante: document.getElementById('sc_susp_v').value,
+    motivacion: document.getElementById('sc_motivacion').value, sedeNeutral: document.getElementById('sc_sede_neutral').checked,
+    suerteLocal: scGetVal('sc_suerte_l'), suerteVisitante: scGetVal('sc_suerte_v')
+  };
+
+  const base = scBuildBaseLambdas(inp);
+  const out = document.getElementById('scDecisionOut');
+  if(!base){
+    out.innerHTML = '<p style="color:var(--red); margin-top:12px; font-size:12px;">Completa al menos xG forma o temporada (anotados y recibidos) de ambos equipos para calcular λ.</p>';
+    document.getElementById('scBtnGuardar').disabled = true;
+    return;
+  }
+  const log = [];
+  const mom = scMomentum(base.lamL, base.lamV, inp.puntosL, inp.puntosV, log);
+  const ctx = scContexto(mom.lamL, mom.lamV, inp, log);
+  const lamL = Math.max(0.15, ctx.lamL), lamV = Math.max(0.15, ctx.lamV);
+
+  const rho = CONFIG.scRho;
+  const P = dixonColesMatrix(lamL, lamV, rho, 7);
+  const probs = dcMarketProbs(P, 7);
+
+  const cuotaLocal = +document.getElementById('sc_cuota_local').value || null;
+  const cuotaEmpate = +document.getElementById('sc_cuota_empate').value || null;
+  const cuotaVisitante = +document.getElementById('sc_cuota_visitante').value || null;
+  const cuotaOver25 = +document.getElementById('sc_cuota_over25').value || null;
+  const cuotaUnder25 = +document.getElementById('sc_cuota_under25').value || null;
+  const cuotaBttsSi = +document.getElementById('sc_cuota_btts_si').value || null;
+  const cuotaBttsNo = +document.getElementById('sc_cuota_btts_no').value || null;
+  const aperturaLocal = +document.getElementById('sc_apertura_local').value || null;
+  const aperturaVisitante = +document.getElementById('sc_apertura_visitante').value || null;
+  const xgsLocal = document.getElementById('sc_xgs_local').value;
+  const xgsEmpate = document.getElementById('sc_xgs_empate').value;
+  const xgsVisitante = document.getElementById('sc_xgs_visitante').value;
+
+  const varLocal = scVetoMovimiento(aperturaLocal, cuotaLocal);   // + = cuota local bajó (dinero al local)
+  const varVisitante = scVetoMovimiento(aperturaVisitante, cuotaVisitante);
+
+  const candidatos = [
+    {mercado:'Local (1)', prob:probs.pLocal, cuota:cuotaLocal, contrarioVar:varVisitante, mismoVar:varLocal},
+    {mercado:'Empate (X)', prob:probs.pEmpate, cuota:cuotaEmpate, contrarioVar:null, mismoVar:null},
+    {mercado:'Visitante (2)', prob:probs.pVisitante, cuota:cuotaVisitante, contrarioVar:varLocal, mismoVar:varVisitante},
+    {mercado:'Over 2.5', prob:probs.over25, cuota:cuotaOver25, contrarioVar:null, mismoVar:null},
+    {mercado:'Under 2.5', prob:probs.under25, cuota:cuotaUnder25, contrarioVar:null, mismoVar:null},
+    {mercado:'BTTS Sí', prob:probs.bttsSi, cuota:cuotaBttsSi, contrarioVar:null, mismoVar:null},
+    {mercado:'BTTS No', prob:probs.bttsNo, cuota:cuotaBttsNo, contrarioVar:null, mismoVar:null},
+  ];
+
+  // Divergencia con xGscore (si se proporcionó)
+  let divergenciaPP = null;
+  if(xgsLocal!=='' && xgsEmpate!=='' && xgsVisitante!==''){
+    const dL = Math.abs(probs.pLocal*100 - (+xgsLocal));
+    const dX = Math.abs(probs.pEmpate*100 - (+xgsEmpate));
+    const dV = Math.abs(probs.pVisitante*100 - (+xgsVisitante));
+    divergenciaPP = Math.max(dL, dX, dV);
+  }
+  const divergenciaFactor = divergenciaPP===null ? 1 : (divergenciaPP<=8 ? 1 : 0.5); // >8pp: stake x0.5 (con o sin explicación, criterio conservador)
+
+  const filas = candidatos.filter(c=>c.cuota).map(c=>{
+    const implicita = 1/c.cuota;
+    let edge = c.prob - implicita;
+    const ev = (c.prob*c.cuota - 1);
+    let vetoTxt = '—';
+    if(c.contrarioVar!==null && c.contrarioVar>8){
+      edge = edge/2;
+      vetoTxt = `Sharp money en contra (contrario bajó ${c.contrarioVar.toFixed(1)}%) → edge÷2`;
+    } else if(c.mismoVar!==null && c.mismoVar>8){
+      vetoTxt = `Mercado confirma (mismo lado bajó ${c.mismoVar.toFixed(1)}%)`;
+    }
+    const stakeKelly = scKellyStake(edge, c.cuota, bankrollInicioHoy(), CONFIG.scKelly, CONFIG.scMaxStakePct) * divergenciaFactor;
+    let semaforo = 'PASAR';
+    if(edge>=CONFIG.scEdgeMin && ev>=CONFIG.scEvMin) semaforo = 'APOSTAR';
+    else if(edge>=0.02 || (divergenciaPP!==null && divergenciaPP>=9 && divergenciaPP<=15)) semaforo = 'BORDERLINE';
+    return {...c, implicita, edge, ev, vetoTxt, stakeKelly, semaforo};
+  });
+
+  scLastCalc = {lamL, lamV, rho, log, probs, filas, divergenciaPP, inp};
+
+  const filasOrdenadas = [...filas].sort((a,b)=>b.ev-a.ev);
+  const mejor = filasOrdenadas.find(f=>f.semaforo==='APOSTAR') || filasOrdenadas[0];
+
+  out.innerHTML = `
+    <div class="decision-panel">
+      <h3>Paso 1-3 · λ finales</h3>
+      <div class="metric-row"><span>λ base (antes de ajustes)</span><span>${base.lamL.toFixed(2)} / ${base.lamV.toFixed(2)}</span></div>
+      <div class="metric-row"><span>λ local final</span><span>${lamL.toFixed(2)}</span></div>
+      <div class="metric-row"><span>λ visitante final</span><span>${lamV.toFixed(2)}</span></div>
+      <div class="metric-row"><span>ρ Dixon-Coles usado</span><span>${rho}</span></div>
+      ${log.length?`<p style="color:var(--text-mute); font-size:11px; margin-top:8px;">${log.join('<br>')}</p>`:''}
+      <h3 style="margin-top:14px;">Probabilidades del modelo (Dixon-Coles)</h3>
+      <div class="metric-row"><span>1 · Local</span><span>${(probs.pLocal*100).toFixed(1)}%</span></div>
+      <div class="metric-row"><span>X · Empate</span><span>${(probs.pEmpate*100).toFixed(1)}%</span></div>
+      <div class="metric-row"><span>2 · Visitante</span><span>${(probs.pVisitante*100).toFixed(1)}%</span></div>
+      <div class="metric-row"><span>Over 2.5 / Under 2.5</span><span>${(probs.over25*100).toFixed(1)}% / ${(probs.under25*100).toFixed(1)}%</span></div>
+      <div class="metric-row"><span>BTTS Sí / No</span><span>${(probs.bttsSi*100).toFixed(1)}% / ${(probs.bttsNo*100).toFixed(1)}%</span></div>
+      ${divergenciaPP!==null?`<div class="metric-row"><span>Divergencia vs. xGscore</span><span style="color:${divergenciaPP>15?'var(--red)':divergenciaPP>8?'var(--amber)':'var(--green)'}">${divergenciaPP.toFixed(1)}pp</span></div>`:''}
+      <h3 style="margin-top:14px;">Mercados con cuota cargada</h3>
+      <table style="margin-top:6px;"><thead><tr><th>Mercado</th><th>P modelo</th><th>Cuota</th><th>Edge</th><th>EV</th><th>Kelly $</th><th>Semáforo</th></tr></thead>
+      <tbody>${filas.length===0?'<tr><td colspan="7" style="text-align:center; color:var(--text-mute);">Carga al menos una cuota para ver la tabla</td></tr>':filas.map(f=>`
+        <tr><td>${f.mercado}</td><td>${(f.prob*100).toFixed(1)}%</td><td>${f.cuota}</td>
+        <td style="color:${f.edge>0?'var(--green)':'var(--red)'}">${(f.edge*100).toFixed(1)}%</td>
+        <td style="color:${f.ev>0?'var(--green)':'var(--red)'}">${(f.ev*100).toFixed(1)}%</td>
+        <td>$${f.stakeKelly.toFixed(2)}</td>
+        <td><span class="badge ${f.semaforo==='APOSTAR'?'ganada':f.semaforo==='BORDERLINE'?'abierto':'perdida'}">${f.semaforo==='APOSTAR'?'🟢 APOSTAR':f.semaforo==='BORDERLINE'?'🟡 BORDERLINE':'🔴 PASAR'}</span></td></tr>
+        ${f.vetoTxt!=='—'?`<tr><td colspan="7" style="color:var(--text-mute); font-size:10.5px; padding-top:0;">↳ ${f.vetoTxt}</td></tr>`:''}
+      `).join('')}</tbody></table>
+      ${mejor && mejor.cuota ? `<div class="verdict ${mejor.semaforo==='APOSTAR'?'go':mejor.semaforo==='BORDERLINE'?'warn':'no'}">${mejor.semaforo==='APOSTAR'?'🟢':mejor.semaforo==='BORDERLINE'?'🟡':'🔴'} Mejor candidato: ${mejor.mercado} — EV ${(mejor.ev*100).toFixed(1)}%</div>` : ''}
+    </div>
+  `;
+  document.getElementById('scBtnGuardar').disabled = false;
+}
+document.getElementById('scBtnCalcular').addEventListener('click', scCalcular);
+
+document.getElementById('formScoutCore').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  if(!scLastCalc){ scCalcular(); if(!scLastCalc) return; }
+  const c = scLastCalc;
+  const mejor = [...c.filas].sort((a,b)=>b.ev-a.ev)[0];
+  const rec = {
+    id: 'sc'+Date.now(), estado:'Abierto',
+    fecha: document.getElementById('sc_fecha').value || getHoy(),
+    dia_semana: diaSemanaDeFecha(document.getElementById('sc_fecha').value || getHoy()),
+    notas_alineacion_local: document.getElementById('sc_notas_alin_l').value.trim(),
+    notas_alineacion_visitante: document.getElementById('sc_notas_alin_v').value.trim(),
+    notas_sentimiento_local: document.getElementById('sc_notas_sent_l').value.trim(),
+    notas_sentimiento_visitante: document.getElementById('sc_notas_sent_v').value.trim(),
+    notas_h2h: document.getElementById('sc_notas_h2h').value.trim(),
+    notas_motivacion_contextual: document.getElementById('sc_notas_motivacion').value.trim(),
+    notas_clima: document.getElementById('sc_notas_clima').value.trim(),
+    partido: document.getElementById('sc_partido').value.trim(),
+    liga: document.getElementById('sc_liga').value.trim(),
+    forma_l_anot: scGetVal('sc_forma_l_anot'), forma_l_rec: scGetVal('sc_forma_l_rec'),
+    temp_l_anot: scGetVal('sc_temp_l_anot'), temp_l_rec: scGetVal('sc_temp_l_rec'),
+    forma_v_anot: scGetVal('sc_forma_v_anot'), forma_v_rec: scGetVal('sc_forma_v_rec'),
+    temp_v_anot: scGetVal('sc_temp_v_anot'), temp_v_rec: scGetVal('sc_temp_v_rec'),
+    pts_l: scGetVal('sc_pts_l'), pts_v: scGetVal('sc_pts_v'),
+    susp_l: document.getElementById('sc_susp_l').value, susp_v: document.getElementById('sc_susp_v').value,
+    motivacion: document.getElementById('sc_motivacion').value,
+    sede_neutral: document.getElementById('sc_sede_neutral').checked ? 'Sí' : 'No',
+    suerte_l: scGetVal('sc_suerte_l'), suerte_v: scGetVal('sc_suerte_v'),
+    cuota_local: scGetVal('sc_cuota_local'), cuota_empate: scGetVal('sc_cuota_empate'), cuota_visitante: scGetVal('sc_cuota_visitante'),
+    cuota_over25: scGetVal('sc_cuota_over25'), cuota_under25: scGetVal('sc_cuota_under25'),
+    cuota_btts_si: scGetVal('sc_cuota_btts_si'), cuota_btts_no: scGetVal('sc_cuota_btts_no'),
+    apertura_local: scGetVal('sc_apertura_local'), apertura_visitante: scGetVal('sc_apertura_visitante'),
+    xgs_local: scGetVal('sc_xgs_local'), xgs_empate: scGetVal('sc_xgs_empate'), xgs_visitante: scGetVal('sc_xgs_visitante'),
+    rho_usado: c.rho, lambda_local: +c.lamL.toFixed(3), lambda_visitante: +c.lamV.toFixed(3),
+    adjustments_log: c.log.join(' | '),
+    mercado_recomendado: mejor ? mejor.mercado : '',
+    probabilidad_modelo: mejor ? +(mejor.prob*100).toFixed(1) : '',
+    cuota_tomada: mejor ? mejor.cuota : '',
+    edge: mejor ? +(mejor.edge*100).toFixed(1) : '',
+    ev: mejor ? +(mejor.ev*100).toFixed(1) : '',
+    veto: mejor ? mejor.vetoTxt : '',
+    divergencia_pp: c.divergenciaPP!==null ? +c.divergenciaPP.toFixed(1) : '',
+    stake_kelly: mejor ? +mejor.stakeKelly.toFixed(2) : '',
+    semaforo: mejor ? mejor.semaforo : '',
+    estrategia: '',
+    resultado:'', pl:'', cuota_cierre:'', clv:'', observacion:'', fecha_cierre:''
+  };
+  SCOUT_RECORDS.push(rec);
+  saveLocalCache();
+  encolarOperacion({type:'create', id:rec.id, record:rec, collection:'scout_core', ts:Date.now()});
+  e.target.reset();
+  document.getElementById('sc_fecha').value = getHoy();
+  document.getElementById('scDecisionOut').innerHTML = '';
+  scLastCalc = null;
+  document.getElementById('scBtnGuardar').disabled = true;
+  renderScoutCore();
+});
+
+window.scCerrar = function(id){
+  const r = SCOUT_RECORDS.find(x=>x.id===id);
+  if(!r) return;
+  const resultado = document.getElementById('scres_'+id).value;
+  let pl = document.getElementById('scpl_'+id).value;
+  const stake = +r.stake_kelly || 0;
+  const cuota = +r.cuota_tomada || 0;
+  if(pl===''){
+    if(resultado==='Ganada') pl = (stake*(cuota-1)).toFixed(2);
+    else if(resultado==='Perdida') pl = (-stake).toFixed(2);
+    else if(resultado==='Cash out'){
+      alert('Cash out no se calcula solo — escribe cuánto ganaste o perdiste realmente en el campo P/L (lo que recibiste de la venta, menos tu stake) y vuelve a intentar.');
+      return;
+    }
+    else pl = '0.00';
+  }
+  const cuotaCierre = document.getElementById('sccc_'+id).value;
+  const clv = cuotaCierre && cuota ? (((cuota - cuotaCierre)/cuotaCierre)*100).toFixed(1) : '';
+  const patch = {
+    resultado, pl, cuota_cierre: cuotaCierre||'', clv,
+    observacion: document.getElementById('scobs_'+id).value,
+    estado:'Cerrado', fecha_cierre: getHoy()
+  };
+  Object.assign(r, patch);
+  saveLocalCache();
+  encolarOperacion({type:'update', id, record:patch, collection:'scout_core', ts:Date.now()});
+  renderScoutCore();
+};
+
+function renderScoutAbiertos(){
+  const wrap = document.getElementById('scAbiertosWrap');
+  if(!wrap) return;
+  const abiertos = SCOUT_RECORDS.filter(r=>r.estado==='Abierto');
+  if(abiertos.length===0){ wrap.innerHTML = '<div class="empty">No hay análisis pendientes.</div>'; return; }
+  wrap.innerHTML = abiertos.map(r=>`
+    <div class="rule-card" style="border-left-color:#a78bfa;">
+      <h3 style="color:#a78bfa;">${r.partido} — ${r.liga} ${OUTBOX.some(o=>o.id===r.id)?'<span style="color:var(--text-mute); font-size:10px;">· sin sincronizar</span>':''}</h3>
+      <p>${r.mercado_recomendado||'sin mercado con cuota'} · prob ${r.probabilidad_modelo||'—'}% · edge ${r.edge||'—'}% · stake sugerido $${r.stake_kelly||'0.00'} · ${r.semaforo||''}</p>
+      <div class="row2" style="margin-top:8px;">
+        <div><label>Resultado</label>
+          <select id="scres_${r.id}"><option value="Ganada">Ganada</option><option value="Perdida">Perdida</option><option value="Push">Push</option><option value="Cash out">Cash out</option><option value="Anulada">Anulada</option></select>
+        </div>
+        <div><label>P/L ($) — vacío = auto</label><input type="number" step="0.01" id="scpl_${r.id}" placeholder="ej. 0.85 (vacío = auto)"></div>
+      </div>
+      <label>Cuota de cierre (opcional)</label>
+      <input type="number" step="0.001" id="sccc_${r.id}" placeholder="ej. 4.20">
+      <label>Observación</label>
+      <input type="text" id="scobs_${r.id}" placeholder="nota breve">
+      <button class="btn small" style="margin-top:10px;" onclick="scCerrar('${r.id}')">Registrar resultado y cerrar</button>
+    </div>
+  `).join('');
+}
+
+function renderScoutHistorial(){
+  const wrap = document.getElementById('scHistWrap');
+  const stats = document.getElementById('scHistStats');
+  if(!wrap || !stats) return;
+  const cerrados = SCOUT_RECORDS.filter(r=>r.estado==='Cerrado');
+  const ganadas = cerrados.filter(r=>r.resultado==='Ganada').length;
+  const decididos = cerrados.filter(r=>r.resultado==='Ganada'||r.resultado==='Perdida'); // Push/Anulada no cuentan para el winrate
+  const stakeTotal = SCOUT_RECORDS.reduce((s,r)=>s+(+r.stake_kelly||0),0);
+  const plTotal = cerrados.reduce((s,r)=>s+(+r.pl||0),0);
+  const winrate = decididos.length ? (ganadas/decididos.length*100).toFixed(1) : '0.0';
+  const roi = stakeTotal ? (plTotal/stakeTotal*100).toFixed(1) : '0.0';
+  stats.innerHTML = `
+    <div class="chip"><b>${SCOUT_RECORDS.length}</b>análisis totales</div>
+    <div class="chip"><b>${SCOUT_RECORDS.filter(r=>r.estado==='Abierto').length}</b>pendientes</div>
+    <div class="chip ${winrate>=50?'ok':'warn'}"><b>${winrate}%</b>winrate</div>
+    <div class="chip ${plTotal>=0?'ok':'danger'}"><b>$${plTotal.toFixed(2)}</b>P/L acumulado</div>
+    <div class="chip ${roi>=0?'ok':'danger'}"><b>${roi}%</b>ROI</div>
+  `;
+  const list = [...SCOUT_RECORDS].sort((a,b)=>(b.fecha_cierre||b.fecha).localeCompare(a.fecha_cierre||a.fecha));
+  if(list.length===0){ wrap.innerHTML = '<div class="empty">Sin análisis registrados todavía.</div>'; return; }
+  wrap.innerHTML = `<table><thead><tr>
+    <th>Fecha</th><th>Partido</th><th>Liga</th><th>λL/λV</th><th>Mercado</th><th>Prob</th><th>Edge</th><th>EV</th>
+    <th>Cuota</th><th>Stake</th><th>Semáforo</th><th>Estado</th><th>Resultado</th><th>P/L</th><th>Divergencia</th><th></th>
+  </tr></thead><tbody>${list.map(r=>`
+    <tr><td>${r.fecha}</td><td>${r.partido}</td><td>${r.liga}</td><td>${r.lambda_local}/${r.lambda_visitante}</td>
+    <td>${r.mercado_recomendado||'—'}</td><td>${r.probabilidad_modelo||'—'}%</td><td>${r.edge||'—'}%</td><td>${r.ev||'—'}%</td>
+    <td>${r.cuota_tomada||'—'}</td><td>$${(+r.stake_kelly||0).toFixed(2)}</td><td>${r.semaforo||'—'}</td>
+    <td><span class="badge ${r.estado==='Abierto'?'abierto':(r.resultado||'').toLowerCase()}">${r.estado==='Abierto'?'Abierto':r.resultado}</span></td>
+    <td>${r.resultado||'—'}</td><td>${r.pl!==''?'$'+(+r.pl).toFixed(2):'—'}</td><td>${r.divergencia_pp!==''?r.divergencia_pp+'pp':'—'}</td>
+    <td><button class="btn secondary small" onclick="abrirEdicion('${r.id}','scout_core')">✎</button></td></tr>
+  `).join('')}</tbody></table>`;
+}
+
+function renderScoutCore(){ renderScoutAbiertos(); renderScoutHistorial(); }
+
+document.getElementById('scBtnExportar').addEventListener('click', ()=>{
+  const headers = ['fecha','dia_semana','partido','liga','forma_l_anot','forma_l_rec','temp_l_anot','temp_l_rec','forma_v_anot','forma_v_rec','temp_v_anot','temp_v_rec','pts_l','pts_v','susp_l','susp_v','motivacion','sede_neutral','suerte_l','suerte_v','cuota_local','cuota_empate','cuota_visitante','cuota_over25','cuota_under25','cuota_btts_si','cuota_btts_no','apertura_local','apertura_visitante','xgs_local','xgs_empate','xgs_visitante','rho_usado','lambda_local','lambda_visitante','adjustments_log','mercado_recomendado','probabilidad_modelo','cuota_tomada','edge','ev','veto','divergencia_pp','stake_kelly','semaforo','estado','resultado','pl','cuota_cierre','clv','observacion','fecha_cierre','notas_alineacion_local','notas_alineacion_visitante','notas_sentimiento_local','notas_sentimiento_visitante','notas_h2h','notas_motivacion_contextual','notas_clima'];
+  const rows = SCOUT_RECORDS.map(r=>headers.map(h=>r[h]));
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Scout Core');
+  XLSX.writeFile(wb, `scout_core_${getHoy()}.xlsx`);
+});
+
+/* ============ HISTORIAL ============ */
+function renderHistorial(){
+  const filtroLiga = (document.getElementById('filtroLiga').value||'').toLowerCase();
+  const filtroMercado = document.getElementById('filtroMercado').value;
+  const filtroResultado = document.getElementById('filtroResultado').value;
+  let list = [...RECORDS].sort((a,b)=> (b.fecha_cierre||b.fecha).localeCompare(a.fecha_cierre||a.fecha));
+  if(filtroLiga) list = list.filter(r=>r.liga.toLowerCase().includes(filtroLiga));
+  if(filtroMercado) list = list.filter(r=>r.mercado===filtroMercado);
+  if(filtroResultado) list = list.filter(r=> filtroResultado==='Abierto' ? r.estado==='Abierto' : r.resultado===filtroResultado);
+
+  const cerrados = RECORDS.filter(r=>r.estado==='Cerrado');
+  const ganadas = cerrados.filter(r=>r.resultado==='Ganada').length;
+  const decididos = cerrados.filter(r=>r.resultado==='Ganada'||r.resultado==='Perdida'); // Push/Anulada no cuentan para el winrate
+  const stakeTotal = RECORDS.reduce((s,r)=>s+(+r.stake||0),0);
+  const plTotal = cerrados.reduce((s,r)=>s+(+r.pl||0),0);
+  const winrate = decididos.length ? (ganadas/decididos.length*100).toFixed(1) : '0.0';
+  const roi = stakeTotal ? (plTotal/stakeTotal*100).toFixed(1) : '0.0';
+  const clvVals = cerrados.map(r=>+r.clv).filter(v=>!isNaN(v) && r_clv_ok(v));
+  function r_clv_ok(v){ return isFinite(v); }
+  const clvProm = clvVals.length ? (clvVals.reduce((a,b)=>a+b,0)/clvVals.length).toFixed(1) : '—';
+  const icdVals = cerrados.map(r=>r.icd_calidad).filter(v=>v!==undefined && v!=='' && !isNaN(+v));
+  const icdProm = icdVals.length ? (icdVals.reduce((a,b)=>a+ +b,0)/icdVals.length).toFixed(1) : '—';
+  const rompiste = cerrados.filter(r=>r.reflexion_rompiste_regla==='Sí').length;
+
+  document.getElementById('histStats').innerHTML = `
+    <div class="chip"><b>${RECORDS.length}</b>registros totales</div>
+    <div class="chip"><b>${RECORDS.filter(r=>r.estado==='Abierto').length}</b>abiertos</div>
+    <div class="chip ${winrate>=50?'ok':'warn'}"><b>${winrate}%</b>winrate</div>
+    <div class="chip"><b>$${stakeTotal.toFixed(2)}</b>stake total</div>
+    <div class="chip ${plTotal>=0?'ok':'danger'}"><b>$${plTotal.toFixed(2)}</b>P/L acumulado</div>
+    <div class="chip ${roi>=0?'ok':'danger'}"><b>${roi}%</b>ROI</div>
+    <div class="chip"><b>${clvProm}${clvProm!=='—'?'%':''}</b>CLV promedio</div>
+    <div class="chip ${icdProm!=='—'&&icdProm>=3?'ok':'warn'}"><b>${icdProm}/4</b>índice calidad decisión</div>
+    <div class="chip ${rompiste>0?'danger':'ok'}"><b>${rompiste}</b>veces rompí una regla</div>
+  `;
+
+  if(list.length===0){ document.getElementById('histWrap').innerHTML = '<div class="empty">Sin registros con estos filtros.</div>'; return; }
+  document.getElementById('histWrap').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>#</th><th>Fecha</th><th>Min.</th><th>Score entr.</th><th>Partido</th><th>Liga</th>
+        <th>Escenario</th><th>Patrón</th><th>Cuota</th><th>Cuota cierre</th><th>CLV</th><th>Stake</th><th>Conf.</th><th>Min. gol</th>
+        <th>Score final</th><th>Estado</th><th>Resultado</th><th>P/L</th><th>Estrategia</th><th>Observación</th><th></th>
+      </tr></thead>
+      <tbody>
+        ${list.map((r,i)=>`
+          <tr>
+            <td>${i+1}</td><td>${r.fecha}</td><td>${r.minuto_entrada}</td><td>${r.score_entrada}</td>
+            <td>${r.partido}</td><td>${r.liga}</td><td>${r.escenario_entrada||'—'}</td><td>${r.patron_tipo||'—'}</td><td>${r.cuota}</td>
+            <td>${r.cuota_cierre||'—'}</td><td>${r.clv!==''?r.clv+'%':'—'}</td>
+            <td>$${(+r.stake).toFixed(2)}</td><td>${r.confianza}</td><td>${r.minuto_gol||'—'}</td>
+            <td>${r.score_final||'—'}</td>
+            <td><span class="badge ${r.estado==='Abierto'?'abierto':(r.resultado||'').toLowerCase()}">${r.estado==='Abierto'?'Abierto':r.resultado}</span></td>
+            <td>${r.resultado||'—'}</td><td>${r.pl!==''?'$'+(+r.pl).toFixed(2):'—'}</td>
+            <td>${r.estrategia||'—'}</td><td>${r.observacion||'—'}</td>
+            <td><button class="btn secondary small" onclick="abrirEdicion('${r.id}','registros')">✎</button></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+['filtroLiga','filtroMercado','filtroResultado'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', renderHistorial);
+  document.getElementById(id).addEventListener('change', renderHistorial);
+});
+
+document.getElementById('btnExportar').addEventListener('click', ()=>{
+  const headers = ['#','Fecha','Día semana','Minuto entrada','Score al entrar','Partido','Liga','Favorito','Posición tabla 1','Posición tabla 2','Revisados 0-0 (1)','0-0 (1)','% 0-0 (1)','No marcó (1)','% No marcó (1)','Revisados 0-0 (2)','0-0 (2)','% 0-0 (2)','No marcó (2)','% No marcó (2)','Lluvia','Corners 1','Tiros arco 1','Posesión 1','xG 1','Corners 2','Tiros arco 2','Posesión 2','xG 2','Confianza 1-5','Escenario','Patrón','Cuota','Cuota cierre','Stake ($)','Minuto gol','Estado','Resultado','Score final','P/L ($)','Estrategia','Check Sofascore','Check Flashscore','Check Overlyzer','Tarjeta roja previa','Alineación OK','Observación resultado','Impulso hubo','Impulso pensamiento','Impulso sesgos','Seguí sistema','Rompí regla','Cuál regla','Repetiría','Sesgos reflexión','Aprendizaje','ICD (0-4)'];
+  const rows = RECORDS.map((r,i)=>[
+    i+1, r.fecha, r.dia_semana, r.minuto_entrada, r.score_entrada, r.partido, r.liga, r.favorito,
+    r.posicion_tabla1, r.posicion_tabla2,
+    r.partidos_revisados_1, r.partidos_00_1, r.pct_00_1, r.nomarco_1, r.pct_nomarco_1,
+    r.partidos_revisados_2, r.partidos_00_2, r.pct_00_2, r.nomarco_2, r.pct_nomarco_2,
+    r.lluvia,
+    r.corners1, r.tiros1, r.posesion1, r.xg1, r.corners2, r.tiros2, r.posesion2, r.xg2,
+    r.confianza, r.escenario_entrada, r.patron_tipo, r.cuota, r.cuota_cierre, r.stake,
+    r.minuto_gol, r.estado, r.resultado, r.score_final, r.pl, r.estrategia,
+    r.check_sofascore, r.check_flashscore, r.check_overlyzer, r.check_tarjeta_roja_previa, r.check_alineacion_ok, r.observacion,
+    r.impulso_hubo, r.impulso_pensamiento, r.impulso_sesgos,
+    r.reflexion_seguiste_sistema, r.reflexion_rompiste_regla, r.reflexion_cual_regla,
+    r.reflexion_repetiria, r.reflexion_sesgos, r.reflexion_aprendizaje, r.icd_calidad
+  ]);
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Registro Gambito');
+  XLSX.writeFile(wb, `gambito_registro_${getHoy()}.xlsx`);
+});
+
+/* ============ METAS ============ */
+document.getElementById('btnActivarDia').addEventListener('click', async ()=>{
+  if(!ENDPOINT){ alert('No hay URL del Web App configurada — usa "Servidor / Sheet" primero.'); return; }
+  const btn = document.getElementById('btnActivarDia');
+  btn.disabled = true; btn.textContent = 'Activando...';
+  try{
+    const res = await apiPost({action:'bitacora_activar_dia', fecha:getHoy()});
+    if(res && res.ok){
+      await refreshBitacoraHoy();
+      renderMetas();
+      alert(res.ya_existia ? `Hoy ya estaba activada como Día ${res.dia}.` : `Listo — hoy quedó activada como Día ${res.dia} de Bitácora.`);
+    } else {
+      alert('No se pudo activar: '+(res&&res.error?res.error:'error desconocido'));
+    }
+  }catch(e){
+    alert('Fallo de conexión: '+(e.message||e));
+  }
+  btn.disabled = false; btn.textContent = 'Activar hoy en Bitácora';
+});
+
+document.getElementById('btnFixBitacora').addEventListener('click', async ()=>{
+  const campo = document.getElementById('fixCampo').value;
+  const valorRaw = document.getElementById('fixValor').value.trim();
+  if(valorRaw===''){ alert('Escribe un valor.'); return; }
+  const valor = campo==='Meta' ? valorRaw : +valorRaw;
+  if(campo!=='Meta' && isNaN(valor)){ alert('Ese campo necesita un número válido.'); return; }
+  if(!ENDPOINT){ alert('No hay URL del Web App configurada — usa "Servidor / Sheet" primero.'); return; }
+  const btn = document.getElementById('btnFixBitacora');
+  btn.disabled = true; btn.textContent = 'Corrigiendo...';
+  try{
+    const res = await apiPost({action:'bitacora_set', fecha:getHoy(), campo, valor});
+    if(res && res.ok){
+      await refreshBitacoraHoy();
+      renderMetas();
+      alert(`Corregido. ${campo} de hoy = ${valor}`);
+      document.getElementById('fixValor').value = '';
+    } else {
+      alert('No se pudo corregir: '+(res&&res.error?res.error:'error desconocido')+'\n\n¿Ya activaste el día de hoy en Bitácora? Usa el botón "Activar hoy en Bitácora" primero si es la primera vez.');
+    }
+  }catch(e){
+    alert('Fallo de conexión: '+(e.message||e));
+  }
+  btn.disabled = false; btn.textContent = 'Corregir en el Sheet';
+});
+
+const TASA_DIARIA_PLAN = (1 - 0.067) / 8; // misma constante de la fórmula de stake: ~11.66%/día si ganaras siempre
+
+function renderMetas(){
+  const hoy = getHoy();
+  const cerrados = RECORDS.filter(r=>r.estado==='Cerrado');
+  const plHoy = cerrados.filter(r=>r.fecha===hoy).reduce((s,r)=>s+(+r.pl||0),0);
+  const bankrollInicio = bankrollInicioHoy();
+  const tieneBitacoraHoy = bitacoraHoyCache && bitacoraHoyCache.fecha===hoy;
+  // Bankroll actual: si Bitácora ya tiene el BR final real de hoy, se usa ese (fuente de verdad);
+  // si no, se aproxima con lo que sabe este dispositivo (inicio + P/L de sus propios registros).
+  const bankrollActual = tieneBitacoraHoy ? (+bitacoraHoyCache.real) : (bankrollInicio + plHoy);
+  const metaDia = metaDiaObjetivo();
+  const diaActual = tieneBitacoraHoy ? (+bitacoraHoyCache.dia || 1) : 1;
+
+  const pctDia = Math.max(0, Math.min(100, ((bankrollActual-bankrollInicio)/(metaDia-bankrollInicio||1))*100));
+  document.getElementById('metaDiaTxt').textContent = `$${bankrollActual.toFixed(2)} / $${metaDia.toFixed(2)} (BR final planificado) — ${pctDia.toFixed(0)}%`;
+  document.getElementById('metaDiaFill').style.width = pctDia+'%';
+
+  const fuente = tieneBitacoraHoy
+    ? `<span style="color:var(--green);">● leído de Bitácora, día ${bitacoraHoyCache.dia}</span>`
+    : `<span style="color:var(--amber);">● sin fila de Bitácora para hoy (${hoy}) — usando respaldo de Config</span>`;
+  document.getElementById('bankrollInfo').innerHTML = `${fuente}<br>Bankroll al inicio de hoy: <b>$${bankrollInicio.toFixed(2)}</b><br>P/L de hoy (registros de este dispositivo): <b style="color:${plHoy>=0?'var(--green)':'var(--red)'}">$${plHoy.toFixed(2)}</b><br>BR final planificado: <b>$${metaDia.toFixed(2)}</b><br>BR final real: <b>$${bankrollActual.toFixed(2)}</b>`;
+
+  // Proyección adaptativa: parte del bankroll REAL de hoy (no del plan original) y compone
+  // la misma tasa diaria hasta completar el día 31. Si hoy cerraste arriba del plan, la meta
+  // de fin de mes sube sola; si cerraste abajo, baja — se recalcula siempre desde lo real.
+  const diasRestantes = Math.max(0, 31 - diaActual);
+  const proyeccion31 = bankrollActual * Math.pow(1 + TASA_DIARIA_PLAN, diasRestantes);
+  document.getElementById('proyeccionInfo').innerHTML = `Día actual: <b>${diaActual} / 31</b><br>Tasa diaria planificada: <b>${(TASA_DIARIA_PLAN*100).toFixed(2)}%</b><br>Bankroll real de hoy: <b>$${bankrollActual.toFixed(2)}</b><br>Proyección al día 31: <b>$${proyeccion31.toFixed(2)}</b>`;
+}
+
+/* ============ CONFIG ============ */
+function applyConfigToForm(){
+  document.getElementById('c_stakefijo').value = CONFIG.stakefijo;
+  document.getElementById('c_stakeminimo').value = CONFIG.stakeminimo;
+  document.getElementById('c_bankrollinicio').value = CONFIG.bankrollinicio;
+  document.getElementById('c_metadiaria').value = CONFIG.metadiaria;
+  document.getElementById('c_cuotamin').value = CONFIG.cuotamin;
+  document.getElementById('c_minmin').value = CONFIG.minmin;
+  document.getElementById('c_minmax').value = CONFIG.minmax;
+  document.getElementById('c_stoplossbajo').value = CONFIG.stoplossbajo;
+  document.getElementById('c_stoplossigual').value = CONFIG.stoplossigual;
+  document.getElementById('c_limitesemana').value = CONFIG.limitesemana;
+  document.getElementById('c_limitefinde').value = CONFIG.limitefinde;
+  document.getElementById('c_maxabiertossemana').value = CONFIG.maxabiertossemana;
+  document.getElementById('c_maxabiertosfinde').value = CONFIG.maxabiertosfinde;
+  document.getElementById('c_scrho').value = CONFIG.scRho;
+  document.getElementById('c_sckelly').value = CONFIG.scKelly;
+  document.getElementById('c_scmaxstake').value = CONFIG.scMaxStakePct;
+  document.getElementById('c_scedgemin').value = CONFIG.scEdgeMin;
+  document.getElementById('c_scevmin').value = CONFIG.scEvMin;
+}
+document.getElementById('btnResetLocal').addEventListener('click', async ()=>{
+  if(!confirm('Esto borra la copia local de este dispositivo (registros y pendientes por sincronizar) y trae de nuevo todo desde el Google Sheet. ¿Continuar?')) return;
+  RECORDS = [];
+  OUTBOX = [];
+  localStorage.removeItem(LOCAL_RECORDS_KEY);
+  localStorage.removeItem(OUTBOX_KEY);
+  await syncWithCloud();
+  renderAll();
+  alert('Caché local borrada. Estado actual traído desde el Sheet.');
+});
+
+document.getElementById('btnGuardarConfig').addEventListener('click', ()=>{
+  CONFIG = {
+    stakefijo:+document.getElementById('c_stakefijo').value,
+    stakeminimo:+document.getElementById('c_stakeminimo').value,
+    bankrollinicio:+document.getElementById('c_bankrollinicio').value,
+    metadiaria:+document.getElementById('c_metadiaria').value,
+    cuotamin:+document.getElementById('c_cuotamin').value,
+    minmin:+document.getElementById('c_minmin').value,
+    minmax:+document.getElementById('c_minmax').value,
+    stoplossbajo:+document.getElementById('c_stoplossbajo').value,
+    stoplossigual:+document.getElementById('c_stoplossigual').value,
+    limitesemana:+document.getElementById('c_limitesemana').value,
+    limitefinde:+document.getElementById('c_limitefinde').value,
+    maxabiertossemana:+document.getElementById('c_maxabiertossemana').value,
+    maxabiertosfinde:+document.getElementById('c_maxabiertosfinde').value,
+    scRho:+document.getElementById('c_scrho').value,
+    scKelly:+document.getElementById('c_sckelly').value,
+    scMaxStakePct:+document.getElementById('c_scmaxstake').value,
+    scEdgeMin:+document.getElementById('c_scedgemin').value,
+    scEvMin:+document.getElementById('c_scevmin').value,
+  };
+  saveConfig(); refreshStakeDefault(); renderAll();
+  alert('Configuración guardada en este dispositivo.');
+});
+
+/* ============ STATUS STRIP ============ */
+function renderStatus(){
+  const d = computeDaily();
+  document.getElementById('statusStrip').innerHTML = `
+    <button class="btn secondary small" id="btnServidor" style="height:fit-content;">Servidor / Sheet</button>
+    <button class="btn secondary small ${OUTBOX.length>0?'':''}" id="btnSync" style="height:fit-content; ${OUTBOX.length>0?'border-color:var(--amber); color:var(--amber);':''}">${syncing?'Sincronizando…':(OUTBOX.length>0?`Sincronizar ahora (${OUTBOX.length})`:'Sincronizado ✓')}</button>
+    <div class="chip"><b>${d.hoy}</b>${d.finde?'fin de semana':'día laboral'}</div>
+    <div class="chip ${d.limiteEntradasAlcanzado?'danger':''}"><b>${d.entradasHoy}/${d.limiteEntradasDia}</b>entradas hoy</div>
+    <div class="chip ${d.limiteAbiertosAlcanzado?'danger':''}"><b>${d.abiertosActuales}/${d.maxAbiertos}</b>abiertos</div>
+    <div class="chip ${d.stopLossActivo?'danger':''}"><b>${d.perdidasHoy}/${d.limitePerdidas}</b>pérdidas hoy</div>
+    <div class="chip ${d.plHoy>=0?'ok':'warn'}"><b>$${d.plHoy.toFixed(2)}</b>P/L hoy</div>
+  `;
+  const btnSrv = document.getElementById('btnServidor');
+  if(btnSrv) btnSrv.addEventListener('click', async ()=>{ ensureEndpoint(true); await syncWithCloud(); renderAll(); });
+  const btnSync = document.getElementById('btnSync');
+  if(btnSync) btnSync.addEventListener('click', ()=>{ manualSync(); });
+
+  const banner = document.getElementById('stoplossBanner');
+  if(d.stopLossActivo){
+    banner.className=''; banner.style.display='block';
+    banner.innerHTML = `<b>STOP-LOSS ACTIVADO.</b> ${d.perdidasHoy} pérdidas hoy — el límite de hoy (${d.finde?'fin de semana':'día laboral'}) es ${d.limitePerdidas}. La consola bloqueará nuevas entradas.`;
+  } else if(d.limiteEntradasAlcanzado){
+    banner.className=''; banner.style.display='block';
+    banner.innerHTML = `<b>LÍMITE DE ENTRADAS ALCANZADO.</b> ${d.entradasHoy} de ${d.limiteEntradasDia} entradas permitidas hoy${d.finde?' (fin de semana)':''}.`;
+  } else if(d.limiteAbiertosAlcanzado){
+    banner.className=''; banner.style.display='block';
+    banner.innerHTML = `<b>MÁXIMO DE PARTIDOS ABIERTOS.</b> Ya tienes ${d.abiertosActuales} de ${d.maxAbiertos} permitidos simultáneamente${d.finde?' (fin de semana)':''}. Cierra uno antes de abrir otro.`;
+  } else if(d.metaAlcanzada){
+    banner.className='info'; banner.style.display='block';
+    banner.innerHTML = `<b>META DEL DÍA CUBIERTA.</b> Bankroll actual $${d.bankrollActual.toFixed(2)} ≥ BR final planificado $${d.metaDia.toFixed(2)}. El stake sigue fijo — si quieres bajarlo el resto del día, cámbialo tú a mano en el formulario.`;
+  } else if(!ENDPOINT){
+    banner.className=''; banner.style.display='block';
+    banner.innerHTML = `<b>SIN CONEXIÓN AL GOOGLE SHEET.</b> No hay URL de Web App guardada en este dispositivo — todo se está guardando solo local. Clic en "Servidor / Sheet" para configurarla.`;
+  } else if(lastSyncError && OUTBOX.length>0){
+    banner.className=''; banner.style.display='block';
+    banner.innerHTML = `<b>SINCRONIZACIÓN FALLANDO.</b> ${OUTBOX.length} registro(s) sin subir. Detalle: ${lastSyncError}. Clic en "Sincronizar ahora" para reintentar y ver más detalle.`;
+  } else{
+    banner.style.display='none';
+  }
+}
+
+/* ============ EDITAR REGISTRO (Historial) ============ */
+let editContexto = null; // {id, collection, original}
+const NO_EDITABLES = new Set(['id']);
+function arrDe(collection){
+  if(collection==='scout_core') return SCOUT_RECORDS;
+  if(collection==='perfil_ligas') return PERFIL_LIGAS;
+  return RECORDS;
+}
+window.abrirEdicion = function(id, collection){
+  const arr = arrDe(collection);
+  const r = arr.find(x=>x.id===id);
+  if(!r) return;
+  editContexto = {id, collection, original:{...r}, esNuevo:false};
+  const cont = document.getElementById('editFields');
+  cont.innerHTML = Object.keys(r).filter(k=>!NO_EDITABLES.has(k)).map(k=>`
+    <div><label>${k}</label><input type="text" data-field="${k}" value="${(r[k]!==undefined&&r[k]!==null?String(r[k]):'').replace(/"/g,'&quot;')}"></div>
+  `).join('');
+  document.getElementById('editOverlay').style.display = 'flex';
+};
+document.getElementById('editCancelar').addEventListener('click', ()=>{
+  document.getElementById('editOverlay').style.display = 'none';
+  editContexto = null;
+});
+document.getElementById('editGuardar').addEventListener('click', ()=>{
+  if(!editContexto) return;
+  const {id, collection, original, esNuevo} = editContexto;
+  const arr = arrDe(collection);
+
+  if(esNuevo){
+    const rec = {...original};
+    document.querySelectorAll('#editFields [data-field]').forEach(inp=>{ rec[inp.dataset.field] = inp.value; });
+    arr.push(rec);
+    saveLocalCache();
+    encolarOperacion({type:'create', id, record:rec, collection, ts:Date.now()});
+    document.getElementById('editOverlay').style.display = 'none';
+    editContexto = null;
+    renderAll();
+    if(typeof renderScoutCore==='function') renderScoutCore();
+    if(typeof renderPerfilLigaWidgets==='function') renderPerfilLigaWidgets();
+    return;
+  }
+
+  const r = arr.find(x=>x.id===id);
+  if(!r) return;
+  const patch = {};
+  document.querySelectorAll('#editFields [data-field]').forEach(inp=>{
+    const k = inp.dataset.field;
+    if(String(original[k]??'') !== inp.value){ patch[k] = inp.value; }
+  });
+  if(Object.keys(patch).length===0){
+    document.getElementById('editOverlay').style.display = 'none';
+    editContexto = null;
+    return;
+  }
+  Object.assign(r, patch);
+  saveLocalCache();
+  encolarOperacion({type:'update', id, record:patch, collection, ts:Date.now()});
+  document.getElementById('editOverlay').style.display = 'none';
+  editContexto = null;
+  renderAll();
+  if(typeof renderScoutCore==='function') renderScoutCore();
+  if(typeof renderPerfilLigaWidgets==='function') renderPerfilLigaWidgets();
+});
+
+function renderAll(){
+  renderStatus(); renderAbiertos(); renderHistorial(); renderMetas(); renderScoutCore();
+}
+
+/* ============ MOTIVACIONES (pestaña Principal) ============ */
+const MOTIVACIONES = [
+  "Ayudar a mis padres",
+  "DATUM",
+  "Overlyzer",
+  "Megacistin tabletas y otros",
+  "Sofascore pagado",
+  "Einstein Analistas — retos Rolex y escalera",
+  "Proteína, creatina, ver mi salud",
+  "Nike Pegasus Trail 2",
+  "Comprar mancuernas pesadas para subir volumen con calistenia",
+  "Estabilización: 4 días seguidos a la misma cuota y luego subir a la cuota que correspondía al primer día",
+  "Estabilizar en 150 durante 4 días y retirar esos 600",
+  "Tener OpenClaw con ChatGPT en una máquina dedicada",
+  "Nike Free Metcon para entrenar",
+  "Pagar todas mis deudas de las tarjetas de crédito",
+  "Empezar inversiones en bolsa de valores y abrir una oficina con Andrés",
+  "Hacer revisar la salud a mis papis y abrirles un seguro de vida",
+  "Empezar un plan de ahorros e inversión a plazo fijo",
+  "Puerta de garaje automática",
+  "Abrir una oficina con Anderson y Andrés en un lugar bacán — traders de valores y de bets",
+  "Contratar un arquitecto para la casa y un electricista; arreglar el techo corredizo de la pérgola",
+  "Otoplastia",
+  "Despacho / gimnasio con unas 3 PCs para todos mis proyectos",
+  "Baño social, hacia abajo y más amplio, como el del Benja",
+  "Primero una camioneta doble cabina china, y después de algún tiempo una Toyota 4Runner del año",
+  "¡Monobeto!",
+  "MacBook Pro, iPhone, iPad, reloj Garmin",
+  "Comprar una botella de Macallan para mí y tener un bar en casa",
+  "Comprar terreno en Manabí para una casa",
+  "200K en depósitos a plazo fijo = 1K mensual",
+  "Pasar a Polymarket"
+];
+const MOTIV_KEY = 'gambito_motivaciones_v1';
+function renderMotivaciones(){
+  let estado = {};
+  try{ const s = localStorage.getItem(MOTIV_KEY); if(s) estado = JSON.parse(s); }catch(e){}
+  const ul = document.getElementById('listaMotivaciones');
+  if(!ul) return;
+  ul.innerHTML = MOTIVACIONES.map((m,i)=>`
+    <li style="padding:5px 0; ${estado[i]?'opacity:.55; text-decoration:line-through;':''}">
+      <label style="display:flex; gap:8px; align-items:flex-start; cursor:pointer; text-transform:none; letter-spacing:0;">
+        <input type="checkbox" data-idx="${i}" ${estado[i]?'checked':''} style="margin-top:3px;">
+        <span>${m}</span>
+      </label>
+    </li>`).join('');
+  ul.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      let est = {};
+      try{ const s = localStorage.getItem(MOTIV_KEY); if(s) est = JSON.parse(s); }catch(e){}
+      est[cb.dataset.idx] = cb.checked;
+      localStorage.setItem(MOTIV_KEY, JSON.stringify(est));
+      renderMotivaciones();
+    });
+  });
+}
+renderMotivaciones();
+document.getElementById('impulsoSesgosBox').innerHTML = renderSesgosCheckboxes('impulso');
+
+document.getElementById('f_fecha').value = getHoy();
+document.getElementById('sc_fecha').value = getHoy();
+document.getElementById('f_liga').addEventListener('input', renderPerfilLigaWidgets);
+document.getElementById('sc_liga').addEventListener('input', renderPerfilLigaWidgets);
+
+/* ============ ESPEJO liga/partido/fecha entre Nuevo Registro y Scout Core ============
+   Solo copia si el campo destino está vacío — así nunca pisa un partido distinto que
+   ya estuvieras llenando en la otra pestaña. */
+function espejarCampo(idA, idB){
+  const a = document.getElementById(idA), b = document.getElementById(idB);
+  let ultimoSincronizado = ''; // valor que ambos campos compartían la última vez que se igualaron por este espejo
+  a.addEventListener('input', ()=>{
+    if(b.value==='' || b.value===ultimoSincronizado) b.value = a.value;
+    ultimoSincronizado = a.value;
+  });
+  b.addEventListener('input', ()=>{
+    if(a.value==='' || a.value===ultimoSincronizado) a.value = b.value;
+    ultimoSincronizado = b.value;
+  });
+}
+espejarCampo('f_liga','sc_liga');
+espejarCampo('f_partido','sc_partido');
+espejarCampo('f_fecha','sc_fecha');
+
+renderQualPrompts();
+renderPerfilLigaWidgets();
+
+loadAll();
+</script>
+
+<script>
+  // Registro del Service Worker — habilita caché real y funcionamiento offline.
+  // Solo funciona servido por HTTPS (GitHub Pages) o localhost, nunca en file://.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('Service Worker registrado:', reg.scope))
+        .catch(err => console.error('No se pudo registrar el Service Worker:', err));
+    });
+  }
+</script>
+</body>
+</html>
