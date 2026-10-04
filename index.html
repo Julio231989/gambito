@@ -541,7 +541,7 @@ hoy, sin retroceso, conquistaré la contienda.</p>
         <p style="color:var(--text-mute); font-size:11px; margin-bottom:10px;">No pesan en el checklist ni en ningún cálculo — son apoyo a tu propio criterio antes de decidir.</p>
         <div id="ghQualPromptsBox"></div>
         <div class="row2">
-          <div><label>Notas alineación (Grok/Perplexity)</label><textarea id="f_notas_alineacion" rows="3"></textarea></div>
+          <div><label>Notas alineación (Gemini/Claude)</label><textarea id="f_notas_alineacion" rows="3"></textarea></div>
           <div><label>Notas motivación contextual</label><textarea id="f_notas_motivacion" rows="3"></textarea></div>
         </div>
         <div class="checkrow" style="margin-top:14px;"><input type="checkbox" id="f_alineacion_ok"><label for="f_alineacion_ok">Alineación confirmada: titulares habituales en cancha, sin bajas clave que reduzcan el poder ofensivo calculado (no es amistoso con suplentes)</label></div>
@@ -679,7 +679,7 @@ hoy, sin retroceso, conquistaré la contienda.</p>
 
       <fieldset style="border-color:#a78bfa;">
         <legend style="color:#a78bfa;">3 · Análisis cualitativo complementario</legend>
-        <p style="color:var(--text-mute); font-size:11px; margin-bottom:10px;">Ninguno de estos campos pesa en λ, edge, EV ni Kelly — son observación pura para tu propio criterio. Genera el prompt, cópialo, pégalo en Grok, y trae aquí lo que te devuelva.</p>
+        <p style="color:var(--text-mute); font-size:11px; margin-bottom:10px;">Ninguno de estos campos pesa en λ, edge, EV ni Kelly — son observación pura para tu propio criterio. Genera el prompt, cópialo, pégalo en Gemini o Claude con búsqueda web activada, y trae aquí lo que te devuelva. (El prompt de Sentimiento lee publicaciones de X: eso solo lo hace bien Grok; los otros cuatro funcionan en Gemini o Claude.)</p>
         <div id="qualPromptsBox"></div>
         <div class="row2">
           <div><label>Notas alineación — Local</label><textarea id="sc_notas_alin_l" rows="3"></textarea></div>
@@ -885,6 +885,7 @@ let ENDPOINT = localStorage.getItem(ENDPOINT_KEY) || '';
 let OUTBOX = [];
 let syncing = false;
 
+const LAST_SYNC_KEY = 'gambito_last_sync_v1';
 const BITACORA_CACHE_KEY = 'gambito_bitacora_hoy_v1';
 let bitacoraHoyCache = null;
 try{ const s = localStorage.getItem(BITACORA_CACHE_KEY); if(s) bitacoraHoyCache = JSON.parse(s); }catch(e){}
@@ -950,15 +951,24 @@ async function parseApiResponse(res){
     throw new Error('Respuesta inesperada del servidor: '+raw.slice(0,120));
   }
 }
+// Con señal débil (no ausente) un fetch puede quedar colgado minutos y congelar loadAll().
+// Se corta a los pocos segundos: el registro queda en la bandeja de salida y se reintenta luego.
+async function fetchConTimeout(url, opts, ms){
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), ms);
+  try{ return await fetch(url, {...opts, signal: ctrl.signal}); }
+  catch(e){ if(e && e.name==='AbortError') throw new Error('Tiempo de espera agotado (señal débil)'); throw e; }
+  finally{ clearTimeout(t); }
+}
 async function apiGet(action, params={}){
   if(!ENDPOINT) throw new Error('sin endpoint');
   const url = new URL(ENDPOINT); url.searchParams.set('action', action);
   Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));
-  const res = await fetch(url.toString()); return parseApiResponse(res);
+  const res = await fetchConTimeout(url.toString(), {}, 12000); return parseApiResponse(res);
 }
 async function apiPost(payload){
   if(!ENDPOINT) throw new Error('sin endpoint');
-  const res = await fetch(ENDPOINT, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload)});
+  const res = await fetchConTimeout(ENDPOINT, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(payload)}, 15000);
   return parseApiResponse(res);
 }
 
@@ -980,13 +990,15 @@ function loadLocalCache(){
   try{ const s = localStorage.getItem(PL_KEY); if(s) PERFIL_LIGAS = JSON.parse(s); }catch(e){}
   try{ const s = localStorage.getItem(OUTBOX_KEY); if(s) OUTBOX = JSON.parse(s); }catch(e){}
 }
+let localSaveError = '';
 function saveLocalCache(){
-  try{
-    localStorage.setItem(LOCAL_RECORDS_KEY, JSON.stringify(RECORDS));
-    localStorage.setItem(SC_RECORDS_KEY, JSON.stringify(SCOUT_RECORDS));
-    localStorage.setItem(PL_KEY, JSON.stringify(PERFIL_LIGAS));
-    localStorage.setItem(OUTBOX_KEY, JSON.stringify(OUTBOX));
-  }catch(e){ console.error('No se pudo guardar localmente', e); }
+  // Cada clave va en su propio try: si una llena la cuota de localStorage, las demás se guardan igual.
+  // La bandeja de salida (lo que aún no llegó al Sheet) va PRIMERO porque es lo único irrecuperable.
+  localSaveError = '';
+  [[OUTBOX_KEY, OUTBOX], [LOCAL_RECORDS_KEY, RECORDS], [SC_RECORDS_KEY, SCOUT_RECORDS], [PL_KEY, PERFIL_LIGAS]].forEach(([k,v])=>{
+    try{ localStorage.setItem(k, JSON.stringify(v)); }
+    catch(e){ localSaveError = 'Almacenamiento local lleno o bloqueado ('+k+')'; console.error('No se pudo guardar localmente', k, e); }
+  });
 }
 
 function encolarOperacion(op){
@@ -1064,7 +1076,7 @@ async function syncWithCloud(){
   const ok1 = await syncCollection('registros', ()=>RECORDS, (m)=>{RECORDS=m;});
   const ok2 = await syncCollection('scout_core', ()=>SCOUT_RECORDS, (m)=>{SCOUT_RECORDS=m;});
   const ok3 = await syncCollection('perfil_ligas', ()=>PERFIL_LIGAS, (m)=>{PERFIL_LIGAS=m;});
-  if(ok1 && ok2 && ok3) lastSyncError='';
+  if(ok1 && ok2 && ok3){ lastSyncError=''; try{ localStorage.setItem(LAST_SYNC_KEY, String(Date.now())); }catch(e){} }
   saveLocalCache();
   await flushOutbox();
   await refreshBitacoraHoy();
@@ -1104,6 +1116,8 @@ async function loadAll(){
   loadLocalCache();          // 1) instantáneo, funciona sin internet
   renderAll();
   ensureEndpoint();          // pide la URL solo si nunca se configuró en este dispositivo
+  refreshStakeDefault();     // stake desde la caché local: no espera a la red (sin señal también funciona)
+  pedirAlmacenamientoPersistente();
   await syncWithCloud();     // 2) intenta traer/enviar lo pendiente si hay señal
   refreshStakeDefault();
   renderAll();
@@ -1679,7 +1693,11 @@ específicos. Organiza en:
 11. Resumen: las 5 características más importantes a tener presentes al analizar
     cualquier partido de esta liga.
 
-No inventes información. Si algo no tiene consenso claro, indícalo.`;
+No inventes información. Si algo no tiene consenso claro, indícalo.
+${sufijoJSON({
+  informe_completo:'texto: el informe organizado en los puntos 1 a 10, cada uno con su número y título',
+  resumen_clave:'texto: el punto 11, las 5 características más importantes, una por línea'
+})}`;
 }
 function draftKeyLiga(liga){ return 'gambito_draft_liga_'+normalizarLiga(liga); }
 function guardarDraftLiga(liga){
@@ -1724,14 +1742,42 @@ function renderPerfilLigaWidget(containerId, ligaInputId){
           <button type="button" class="btn secondary small" id="copiarLiga_${containerId}" style="display:none;">Copiar</button>
         </div>
         ${draft ? `<p style="color:var(--amber); font-size:10.5px; margin-top:8px;">● Recuperado un borrador que tenías sin guardar (${new Date(draft.ts).toLocaleTimeString()}).</p>` : ''}
+        <div style="margin-top:10px;">
+          <button type="button" class="btn small" onclick="autollenarPerfilLiga('${containerId}','${safeLiga}')">Pegar JSON → autollenar</button>
+          <div id="ligaJsonBox_${containerId}" style="display:none; margin-top:6px;">
+            <textarea id="ligaJsonIn_${containerId}" rows="4" placeholder="Pega aquí el JSON que devolvió la IA y toca Aplicar." style="width:100%; background:#0a121f; border:1px solid var(--line); color:var(--text); border-radius:3px; padding:8px; font-family:'IBM Plex Mono',monospace; font-size:10.5px;"></textarea>
+            <button type="button" class="btn secondary small" style="margin-top:6px;" onclick="aplicarJSONPerfilLiga('${containerId}','${safeLiga}')">Aplicar</button>
+          </div>
+          <p id="ligaJsonMsg_${containerId}" style="display:none; font-size:11px; margin-top:6px;"></p>
+        </div>
         <label style="margin-top:10px;">Informe completo (pega aquí lo que te devolvió la IA)</label>
         <textarea id="draftInforme_${safeId}" rows="4" oninput="guardarDraftLiga('${safeLiga}')">${draft?draft.informe:''}</textarea>
         <label>Resumen clave (tus 3-5 líneas de conclusión)</label>
         <textarea id="draftResumen_${safeId}" rows="3" oninput="guardarDraftLiga('${safeLiga}')">${draft?draft.resumen:''}</textarea>
         <button type="button" class="btn small" style="margin-top:8px;" onclick="guardarPerfilLigaInline('${safeLiga}')">Guardar perfil de liga</button>
-        <p style="color:var(--text-mute); font-size:10px; margin-top:6px;">Se autoguarda un borrador en este dispositivo mientras escribes — aunque recargues o salgas a copiar de Grok, no se pierde hasta que le des "Guardar".</p>
+        <p style="color:var(--text-mute); font-size:10px; margin-top:6px;">Se autoguarda un borrador en este dispositivo mientras escribes — aunque recargues o salgas a copiar de Gemini/Claude, no se pierde hasta que le des "Guardar".</p>
       </div>`;
   }
+}
+window.autollenarPerfilLiga = async function(containerId, liga){
+  const txt = await leerPortapapeles();
+  if(txt && txt.trim()){ procesarJSONPerfilLiga(containerId, liga, txt); return; }
+  document.getElementById('ligaJsonBox_'+containerId).style.display = 'block';
+  document.getElementById('ligaJsonIn_'+containerId).focus();
+  mostrarMsgJSON('ligaJsonMsg_'+containerId, false, 'No pude leer el portapapeles. Pega el JSON en el cuadro y toca Aplicar.');
+};
+window.aplicarJSONPerfilLiga = function(containerId, liga){
+  procesarJSONPerfilLiga(containerId, liga, document.getElementById('ligaJsonIn_'+containerId).value);
+};
+function procesarJSONPerfilLiga(containerId, liga, txt){
+  const safeId = liga.replace(/[^a-zA-Z0-9]/g,'_');
+  const msgId = 'ligaJsonMsg_'+containerId;
+  try{
+    const r = aplicarJSONaCampos(extraerJSON(txt), {informe_completo:'draftInforme_'+safeId, resumen_clave:'draftResumen_'+safeId});
+    if(r===null){ mostrarMsgJSON(msgId,false,'Cancelado: no se reemplazó nada.'); return; }
+    guardarDraftLiga(liga); // queda como borrador; el perfil solo se guarda al tocar "Guardar perfil de liga"
+    mostrarMsgJSON(msgId,true,`✓ ${r.aplicados} campo(s) rellenados como borrador. Revísalos y toca "Guardar perfil de liga".`);
+  }catch(e){ mostrarMsgJSON(msgId,false,'✗ '+e.message); }
 }
 window.guardarPerfilLigaInline = function(liga){
   const safeId = liga.replace(/[^a-zA-Z0-9]/g,'_');
@@ -1869,16 +1915,130 @@ Partido: ${local} vs ${visitante} — ${fecha} — Sede: la del equipo local (${
 4. Nivel de confianza del pronóstico: Alto/Medio/Bajo (¿qué tan cerca está la fecha?).`;
 }
 
+/* ============ AUTOLLENADO POR JSON (notas cualitativas y perfil de liga) ============
+   Cada prompt termina pidiendo a la IA un objeto JSON con claves EXACTAS. El botón
+   "Pegar JSON → autollenar" lee el portapapeles (o un cuadro de texto si el navegador no
+   da permiso), valida y rellena los campos. Nada se guarda solo: revisas y luego guardas. */
+function repararSaltosEnStrings(t){
+  // Las IA a veces dejan saltos de línea reales dentro de un texto JSON; eso es inválido. Se escapan solo dentro de strings.
+  let out='', dentro=false, esc=false;
+  for(const ch of t){
+    if(dentro){
+      if(esc){ out+=ch; esc=false; }
+      else if(ch==='\\'){ out+=ch; esc=true; }
+      else if(ch==='"'){ out+=ch; dentro=false; }
+      else if(ch==='\n'){ out+='\\n'; }
+      else if(ch==='\r'){ /* se descarta */ }
+      else if(ch==='\t'){ out+='\\t'; }
+      else out+=ch;
+    } else { if(ch==='"') dentro=true; out+=ch; }
+  }
+  return out;
+}
+function extraerJSON(txt){
+  let t = String(txt||'').replace(/```(?:json)?/gi,'').trim();
+  const a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if(a===-1 || b<=a) throw new Error('No encontré un objeto JSON ({ ... }) en el texto pegado.');
+  t = t.slice(a,b+1);
+  try{ return JSON.parse(t); }
+  catch(e1){
+    try{ return JSON.parse(repararSaltosEnStrings(t)); }
+    catch(e2){ throw new Error('El JSON está mal formado ('+e1.message+'). Pídele a la IA: "devuelve solo JSON válido, con las comillas internas escapadas".'); }
+  }
+}
+function valorATexto(v){
+  if(v===null || v===undefined) return '';
+  if(typeof v==='string') return v.trim();
+  if(Array.isArray(v)) return v.map(x=> typeof x==='string' ? '- '+x : valorATexto(x)).join('\n');
+  if(typeof v==='object') return Object.entries(v).map(([k,x])=>k.replace(/_/g,' ')+': '+valorATexto(x)).join('\n');
+  return String(v);
+}
+// mapa: { claveJSON: idDelCampo }. Devuelve {aplicados, faltan, extra} o null si cancelas el reemplazo.
+function aplicarJSONaCampos(data, mapa){
+  if(!data || typeof data!=='object' || Array.isArray(data)) throw new Error('El JSON debe ser un objeto { "clave": "texto", ... }.');
+  const nuevos = {}, faltan = [], conTexto = [];
+  Object.entries(mapa).forEach(([k,id])=>{
+    const t = valorATexto(data[k]);
+    const el = document.getElementById(id);
+    if(!t || !el){ faltan.push(k); return; }
+    nuevos[id] = t;
+    if(el.value.trim()) conTexto.push(k);
+  });
+  if(Object.keys(nuevos).length===0) throw new Error('El JSON no trae ninguna de las claves esperadas: '+Object.keys(mapa).join(', ')+'.');
+  if(conTexto.length && !confirm('Estos campos ya tienen texto y se van a reemplazar: '+conTexto.join(', ')+'.\n\n¿Continuar?')) return null;
+  Object.entries(nuevos).forEach(([id,t])=>{
+    const el = document.getElementById(id);
+    el.value = t;
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  return {aplicados:Object.keys(nuevos).length, faltan, extra:Object.keys(data).filter(k=>!(k in mapa))};
+}
+function sufijoJSON(campos){
+  const ejemplo = {};
+  Object.entries(campos).forEach(([k,d])=>{ ejemplo[k] = d; });
+  return `
+
+═══ FORMATO DE RESPUESTA (obligatorio) ═══
+Devuélveme ÚNICAMENTE este objeto JSON, sin texto antes ni después y sin markdown,
+con estos nombres de campo EXACTOS (no los cambies ni agregues otros). Cada valor es un
+texto plano; usa \\n para saltos de línea y escapa las comillas dobles internas (\\").
+Si no encuentras un dato verificable, escríbelo así en el texto: "Sin datos verificables". NUNCA inventes.
+
+${JSON.stringify(ejemplo,null,2)}`;
+}
+function mostrarMsgJSON(id, ok, texto){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.style.display = 'block';
+  el.style.color = ok ? 'var(--green)' : 'var(--red)';
+  el.textContent = texto;
+}
+async function leerPortapapeles(){
+  try{ if(navigator.clipboard && navigator.clipboard.readText) return await navigator.clipboard.readText(); }catch(e){}
+  return null; // sin permiso o navegador sin soporte: se usa el cuadro de texto
+}
+function procesarJSONTarjeta(cfg, txt){
+  const msgId = 'qualJsonMsg_'+cfg.key;
+  try{
+    const r = aplicarJSONaCampos(extraerJSON(txt), cfg.mapa);
+    if(r===null){ mostrarMsgJSON(msgId,false,'Cancelado: no se reemplazó nada.'); return; }
+    let m = `✓ ${r.aplicados} campo(s) rellenados. Revisa el texto antes de guardar.`;
+    if(r.faltan.length) m += ` Sin dato en: ${r.faltan.join(', ')}.`;
+    if(r.extra.length) m += ` Ignoré claves no esperadas: ${r.extra.join(', ')}.`;
+    mostrarMsgJSON(msgId,true,m);
+    const box = document.getElementById('qualJsonBox_'+cfg.key); if(box) box.style.display='none';
+    const inp = document.getElementById('qualJsonIn_'+cfg.key); if(inp) inp.value='';
+  }catch(e){ mostrarMsgJSON(msgId,false,'✗ '+e.message); }
+}
+
 const QUAL_PROMPTS = [
-  {key:'sentimiento', label:'Sentimiento en X (ruido, no señal)', build:()=>promptSentimiento()},
-  {key:'alineacion',  label:'Alineación y disponibilidad',        build:()=>promptAlineacion('sc')},
-  {key:'h2h',         label:'Historial de enfrentamientos (H2H)', build:()=>promptH2H()},
-  {key:'motivacion',  label:'Motivación contextual',               build:()=>promptMotivacion('sc')},
-  {key:'clima',       label:'Clima y estado de cancha',            build:()=>promptClima()},
+  {key:'sentimiento', label:'Sentimiento en X (ruido, no señal)', build:()=>promptSentimiento(),
+   campos:{
+     notas_sentimiento_local:'texto: tono, observaciones parafraseadas y cambio de narrativa sobre el LOCAL, con tu confianza Alto/Medio/Bajo',
+     notas_sentimiento_visitante:'texto: lo mismo para el VISITANTE'},
+   mapa:{notas_sentimiento_local:'sc_notas_sent_l', notas_sentimiento_visitante:'sc_notas_sent_v'}},
+  {key:'alineacion',  label:'Alineación y disponibilidad',        build:()=>promptAlineacion('sc'),
+   campos:{
+     notas_alineacion_local:'texto: once probable, bajas, dudas, rotación, impacto táctico e índice de continuidad del LOCAL',
+     notas_alineacion_visitante:'texto: lo mismo para el VISITANTE (incluye al final el cierre de 3 líneas)'},
+   mapa:{notas_alineacion_local:'sc_notas_alin_l', notas_alineacion_visitante:'sc_notas_alin_v'}},
+  {key:'h2h',         label:'Historial de enfrentamientos (H2H)', build:()=>promptH2H(),
+   campos:{notas_h2h:'texto: resultados recientes, patrón, factor psicológico y tu confianza Alto/Medio/Bajo'},
+   mapa:{notas_h2h:'sc_notas_h2h'}},
+  {key:'motivacion',  label:'Motivación contextual',               build:()=>promptMotivacion('sc'),
+   campos:{notas_motivacion_contextual:'texto: qué se juega cada equipo, calendario próximo, factores extra y conclusión de 2 líneas'},
+   mapa:{notas_motivacion_contextual:'sc_notas_motivacion'}},
+  {key:'clima',       label:'Clima y estado de cancha',            build:()=>promptClima(),
+   campos:{notas_clima:'texto: pronóstico a la hora del partido, estado de cancha, efecto sobre cada equipo y confianza'},
+   mapa:{notas_clima:'sc_notas_clima'}},
 ];
 const GH_QUAL_PROMPTS = [
-  {key:'gh_alineacion', label:'Alineación y disponibilidad', build:()=>promptAlineacion('f')},
-  {key:'gh_motivacion', label:'Motivación contextual',        build:()=>promptMotivacion('f')},
+  {key:'gh_alineacion', label:'Alineación y disponibilidad', build:()=>promptAlineacion('f'),
+   campos:{notas_alineacion_gh:'texto con dos secciones "LOCAL:" y "VISITANTE:" (once, bajas, dudas, rotación, continuidad) y al final el cierre de 3 líneas'},
+   mapa:{notas_alineacion_gh:'f_notas_alineacion'}},
+  {key:'gh_motivacion', label:'Motivación contextual',        build:()=>promptMotivacion('f'),
+   campos:{notas_motivacion_gh:'texto: qué se juega cada equipo, calendario próximo, factores extra y conclusión de 2 líneas'},
+   mapa:{notas_motivacion_gh:'f_notas_motivacion'}},
 ];
 function renderQualPromptsInto(containerId, prompts){
   const cont = document.getElementById(containerId);
@@ -1888,14 +2048,20 @@ function renderQualPromptsInto(containerId, prompts){
       <h3>${p.label}</h3>
       <button type="button" class="btn secondary small" data-qual="${p.key}">Generar prompt</button>
       <button type="button" class="btn secondary small" data-qualcopy="${p.key}" style="display:none;">Copiar</button>
+      <button type="button" class="btn small" data-qualjson="${p.key}">Pegar JSON → autollenar</button>
       <textarea id="qualOut_${p.key}" rows="4" readonly style="width:100%; margin-top:8px; background:#0a121f; border:1px solid var(--line); color:var(--text-dim); border-radius:3px; padding:8px; font-family:'IBM Plex Mono',monospace; font-size:10.5px; display:none;"></textarea>
+      <div id="qualJsonBox_${p.key}" style="display:none; margin-top:8px;">
+        <textarea id="qualJsonIn_${p.key}" rows="4" placeholder="Tu navegador no permitió leer el portapapeles: pega aquí el JSON que devolvió la IA y toca Aplicar." style="width:100%; background:#0a121f; border:1px solid var(--line); color:var(--text); border-radius:3px; padding:8px; font-family:'IBM Plex Mono',monospace; font-size:10.5px;"></textarea>
+        <button type="button" class="btn secondary small" data-qualjsonapply="${p.key}" style="margin-top:6px;">Aplicar</button>
+      </div>
+      <p id="qualJsonMsg_${p.key}" style="display:none; font-size:11px; margin-top:6px; white-space:pre-line;"></p>
     </div>
   `).join('');
   cont.querySelectorAll('[data-qual]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const cfg = prompts.find(p=>p.key===btn.dataset.qual);
       const out = document.getElementById('qualOut_'+cfg.key);
-      out.value = cfg.build();
+      out.value = cfg.build() + sufijoJSON(cfg.campos);
       out.style.display = 'block';
       cont.querySelector(`[data-qualcopy="${cfg.key}"]`).style.display = 'inline-block';
     });
@@ -1903,8 +2069,24 @@ function renderQualPromptsInto(containerId, prompts){
   cont.querySelectorAll('[data-qualcopy]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const out = document.getElementById('qualOut_'+btn.dataset.qualcopy);
-      try{ await navigator.clipboard.writeText(out.value); alert('Prompt copiado — pégalo en Grok junto con lo que pida.'); }
+      try{ await navigator.clipboard.writeText(out.value); alert('Prompt copiado — pégalo en Gemini o Claude (con búsqueda web activada). Cuando responda, copia su JSON y toca "Pegar JSON → autollenar".'); }
       catch(e){ out.select(); alert('No se pudo copiar automático — quedó seleccionado, usa Ctrl+C.'); }
+    });
+  });
+  cont.querySelectorAll('[data-qualjson]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const cfg = prompts.find(p=>p.key===btn.dataset.qualjson);
+      const txt = await leerPortapapeles();
+      if(txt && txt.trim()){ procesarJSONTarjeta(cfg, txt); return; }
+      document.getElementById('qualJsonBox_'+cfg.key).style.display = 'block';
+      document.getElementById('qualJsonIn_'+cfg.key).focus();
+      mostrarMsgJSON('qualJsonMsg_'+cfg.key, false, 'No pude leer el portapapeles (vacío o sin permiso). Pega el JSON en el cuadro y toca Aplicar.');
+    });
+  });
+  cont.querySelectorAll('[data-qualjsonapply]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const cfg = prompts.find(p=>p.key===btn.dataset.qualjsonapply);
+      procesarJSONTarjeta(cfg, document.getElementById('qualJsonIn_'+cfg.key).value);
     });
   });
 }
@@ -2454,7 +2636,7 @@ document.getElementById('btnFixBitacora').addEventListener('click', async ()=>{
   btn.disabled = false; btn.textContent = 'Corregir en el Sheet';
 });
 
-const TASA_DIARIA_PLAN = (1 - 0.067) / 8; // misma constante de la fórmula de stake: ~11.66%/día si ganaras siempre
+const TASA_DIARIA_PLAN = 1 / 8; // stake = bankroll/8 (sin reserva): ganar 1 stake al día = +12.5%/día compuesto
 
 function renderMetas(){
   const hoy = getHoy();
@@ -2543,11 +2725,19 @@ document.getElementById('btnGuardarConfig').addEventListener('click', ()=>{
 });
 
 /* ============ STATUS STRIP ============ */
+function chipConexion(){
+  const ts = +localStorage.getItem(LAST_SYNC_KEY) || 0;
+  const hora = ts ? new Date(ts).toLocaleString('es-EC',{timeZone:TZ_ECUADOR, day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : 'nunca';
+  const aviso = localSaveError ? `<div class="chip danger"><b>⚠ memoria</b>${localSaveError}</div>` : '';
+  if(!navigator.onLine) return `<div class="chip warn"><b>Sin conexión</b>leyendo copia local · últ. sync ${hora}</div>${aviso}`;
+  return `<div class="chip"><b>En línea</b>últ. sync ${hora}</div>${aviso}`;
+}
 function renderStatus(){
   const d = computeDaily();
   document.getElementById('statusStrip').innerHTML = `
     <button class="btn secondary small" id="btnServidor" style="height:fit-content;">Servidor / Sheet</button>
     <button class="btn secondary small ${OUTBOX.length>0?'':''}" id="btnSync" style="height:fit-content; ${OUTBOX.length>0?'border-color:var(--amber); color:var(--amber);':''}">${syncing?'Sincronizando…':(OUTBOX.length>0?`Sincronizar ahora (${OUTBOX.length})`:'Sincronizado ✓')}</button>
+    ${chipConexion()}
     <div class="chip"><b>${d.hoy}</b>${d.finde?'fin de semana':'día laboral'}</div>
     <div class="chip ${d.limiteEntradasAlcanzado?'danger':''}"><b>${d.entradasHoy}/${d.limiteEntradasDia}</b>entradas hoy</div>
     <div class="chip ${d.limiteAbiertosAlcanzado?'danger':''}"><b>${d.abiertosActuales}/${d.maxAbiertos}</b>abiertos</div>
@@ -2736,6 +2926,27 @@ espejarCampo('f_fecha','sc_fecha');
 
 renderQualPrompts();
 renderPerfilLigaWidgets();
+
+/* ============ OFFLINE: reconexión, almacenamiento persistente, nueva versión ============ */
+window.addEventListener('online', ()=>{ flushOutbox(); renderAllSafe(); });   // sube lo registrado sin señal en cuanto vuelve la conexión
+window.addEventListener('offline', ()=>{ renderAllSafe(); });
+async function pedirAlmacenamientoPersistente(){
+  // Evita que el navegador borre los datos locales (registros + bandeja pendiente) si el teléfono se queda sin espacio.
+  try{ if(navigator.storage && navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
+}
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('message', (ev)=>{
+    if(ev.data && ev.data.type==='SW_ACTUALIZADO'){
+      if(document.getElementById('avisoNuevaVersion')) return;
+      const b = document.createElement('div');
+      b.id = 'avisoNuevaVersion';
+      b.style.cssText = 'position:fixed; left:12px; right:12px; bottom:12px; z-index:200; background:var(--panel-2); border:1px solid var(--teal); border-radius:6px; padding:10px 12px; display:flex; gap:10px; align-items:center; justify-content:space-between; font-size:12px;';
+      b.innerHTML = '<span>Hay una versión nueva de Gambito.</span><button class="btn small" id="btnRecargarVersion">Recargar</button>';
+      document.body.appendChild(b);
+      document.getElementById('btnRecargarVersion').addEventListener('click', ()=>location.reload());
+    }
+  });
+}
 
 loadAll();
 </script>
