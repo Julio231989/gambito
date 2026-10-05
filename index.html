@@ -49,6 +49,11 @@
   .chip.danger{border-color:var(--red);} .chip.danger b{color:var(--red);}
   .chip.ok b{color:var(--green);}
   #stoplossBanner{display:none; background:oklch(0.22 0.08 24 / 55%); border:1px solid var(--red); color:oklch(0.90 0.05 20); padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:12px; box-shadow:0 4px 16px oklch(0 0 0 / 25%);}
+  .premeditatio{border-left:3px solid var(--teal); background:oklch(0.22 0.04 174 / 40%); padding:10px 14px; border-radius:0 8px 8px 0; margin:0 0 14px; }
+  .premeditatio small{display:block; color:var(--teal); font-size:9.5px; letter-spacing:.18em; text-transform:uppercase; font-weight:600; margin-bottom:4px;}
+  .premeditatio p{font-size:13px; line-height:1.5; color:var(--text); font-style:italic; margin:0;}
+  #bitacoraErrBanner{display:none; cursor:pointer; background:oklch(0.22 0.08 24 / 70%); border:2px solid var(--red); color:oklch(0.93 0.04 20); padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:12px; box-shadow:0 4px 16px oklch(0 0 0 / 25%);}
+  #bitacoraErrBanner b{color:var(--red);}
   #stoplossBanner.info{background:oklch(0.22 0.06 174 / 45%); border-color:var(--teal); color:oklch(0.90 0.05 174);}
   #stoplossBanner b{color:inherit;}
   nav.tabs{display:flex; gap:2px; margin-bottom:20px; border-bottom:1px solid var(--line); flex-wrap:wrap;}
@@ -133,6 +138,7 @@
   <div class="status-strip" id="statusStrip"></div>
 </header>
 
+<div id="bitacoraErrBanner" role="alert"></div>
 <div id="stoplossBanner"></div>
 
 <nav class="tabs">
@@ -274,6 +280,8 @@ hoy, sin retroceso, conquistaré la contienda.</p>
 
     <div class="verdict warn" style="margin-bottom:16px; font-size:14px; padding:14px;">A veces el gol nunca llega. (Debo lidiar con eso.)</div>
 
+    <div class="premeditatio"><small>Premeditatio malorum · regla operativa de toda operación</small><p data-premeditatio></p></div>
+
     <div class="rule-card limits">
       <h3>A · Gestión de banca</h3>
       <ul>
@@ -376,6 +384,7 @@ hoy, sin retroceso, conquistaré la contienda.</p>
 <section id="tab-nuevo" class="tabpanel" style="display:none;">
   <div class="panel">
     <h2><span class="n">02</span>Nuevo registro — captura en vivo</h2>
+    <div class="premeditatio"><small>Premeditatio malorum · regla operativa</small><p data-premeditatio></p></div>
     <p style="color:var(--amber); font-size:11px; margin-bottom:10px;">Los campos en <b>ámbar con *</b> son obligatorios para guardar el registro. El resto es opcional.</p>
     <form id="formNuevo">
       <fieldset>
@@ -613,6 +622,25 @@ hoy, sin retroceso, conquistaré la contienda.</p>
     </div>
     <p style="color:var(--text-mute); font-size:11px; margin-top:10px;">La proyección de 31 días NO es un número fijo: cada día se recalcula desde tu bankroll real (no el planificado). Si un día cierras arriba del plan, la meta de fin de mes sube sola; si cierras abajo, baja. La meta diaria (referencia) se edita en <b>Config</b>. Este panel es informativo — no bloquea entradas, solo te muestra el avance.</p>
 
+    <div class="rule-card discard" id="cardChequeo" style="margin-top:16px;">
+      <h3>Verificación de Bitácora</h3>
+      <div id="chequeoLista"></div>
+    </div>
+
+    <div class="rule-card limits" id="cardL2" style="margin-top:16px;">
+      <h3>Línea 2 — all-in (independiente de Gambito)</h3>
+      <p style="color:var(--text-dim); font-size:11.5px; margin-bottom:10px;">Solo recibe el excedente que Gambito genera sobre su plan. Nunca intercambia dinero con Gambito y no se registran sus operaciones: al cerrar el día anotas el total.</p>
+      <div id="l2Resumen"></div>
+      <div class="row2" style="margin-top:10px;">
+        <div><label>Día a cerrar</label><select id="l2Fecha"></select></div>
+        <div><label>Total de la Línea 2 al cerrar ($)</label><input type="text" inputmode="decimal" id="l2Total" placeholder="ej. 3.40"></div>
+      </div>
+      <p id="l2Base" style="color:var(--text-mute); font-size:11px; margin-top:6px;"></p>
+      <button class="btn small" id="btnGuardarL2" style="width:100%; margin-top:10px;">Guardar cierre de Línea 2</button>
+      <p id="l2Msg" style="display:none; font-size:11.5px; margin-top:8px;"></p>
+      <div class="table-wrap" id="l2Historial" style="margin-top:12px;"></div>
+    </div>
+
     <div class="rule-card limits" style="margin-top:16px;">
       <h3>Activar día de hoy en Bitácora</h3>
       <p style="color:var(--text-dim); font-size:11.5px; margin-bottom:10px;">Registra la fecha de hoy en la próxima fila libre de Bitácora, sin entrar al Sheet. Si ya estaba activada, no pasa nada — solo te confirma.</p>
@@ -641,6 +669,7 @@ hoy, sin retroceso, conquistaré la contienda.</p>
 <section id="tab-scoutcore" class="tabpanel" style="display:none;">
   <div class="panel">
     <h2><span class="n">03</span>Scout Core — motor prematch (Gambito v3.0)</h2>
+    <div class="premeditatio"><small>Premeditatio malorum · regla operativa</small><p data-premeditatio></p></div>
     <p style="color:var(--text-mute); font-size:11.5px; margin-bottom:14px;">Segunda lectura, independiente de Goal Hunter: 100% estadística, cero checklist manual. Tú buscas los datos (xGscore, FBref, Understat) y los escribes aquí; el motor corre λ base → momentum → contexto → Dixon-Coles → mercados → vetos → Kelly, exactamente como se lo pedías a Opus, pero local y sin costo de tokens. Guarda análisis aunque no termines apostando — no todos van a dar edge.</p>
 
     <form id="formScoutCore">
@@ -887,6 +916,14 @@ let syncing = false;
 
 const LAST_SYNC_KEY = 'gambito_last_sync_v1';
 const BITACORA_CACHE_KEY = 'gambito_bitacora_hoy_v1';
+const BITACORA_TABLA_KEY = 'gambito_bitacora_tabla_v1';
+const L2_PEND_KEY = 'gambito_l2_pend_v1';
+let bitacoraTabla = null;      // copia local de toda la Bitácora (consulta offline)
+let l2Pend = {};               // cierres de Línea 2 escritos sin señal: {fecha: total}
+let l2ScriptViejo = false;
+let l2UltimoError = '';
+try{ const s0 = localStorage.getItem(BITACORA_TABLA_KEY); if(s0) bitacoraTabla = JSON.parse(s0); }catch(e){}
+try{ const s1 = localStorage.getItem(L2_PEND_KEY); if(s1) l2Pend = JSON.parse(s1) || {}; }catch(e){}
 let bitacoraHoyCache = null;
 try{ const s = localStorage.getItem(BITACORA_CACHE_KEY); if(s) bitacoraHoyCache = JSON.parse(s); }catch(e){}
 
@@ -1005,7 +1042,7 @@ function encolarOperacion(op){
   if(!op.collection) op.collection = 'registros';
   OUTBOX.push(op);
   saveLocalCache();
-  flushOutbox(); // intento inmediato; si falla, queda encolado para los reintentos automáticos
+  flushOutbox().then(()=>{ if(OUTBOX.length===0 && ENDPOINT){ refreshBitacoraTabla().then(()=>renderAllSafe()); } }); // intento inmediato; si falla, queda encolado
 }
 
 let lastSyncError = '';
@@ -1080,6 +1117,8 @@ async function syncWithCloud(){
   saveLocalCache();
   await flushOutbox();
   await refreshBitacoraHoy();
+  await flushL2();
+  await refreshBitacoraTabla();
   renderAllSafe(); // refresca la pantalla aunque no hubiera nada pendiente por enviar — salvo que estés escribiendo
 }
 
@@ -1133,7 +1172,7 @@ document.querySelectorAll('nav.tabs button').forEach(btn=>{
     btn.classList.add('active');
     document.querySelectorAll('.tabpanel').forEach(p=>p.style.display='none');
     document.getElementById('tab-'+btn.dataset.tab).style.display='block';
-    if(btn.dataset.tab==='metas'){ await refreshBitacoraHoy(); }
+    if(btn.dataset.tab==='metas'){ await refreshBitacoraHoy(); await refreshBitacoraTabla(); }
     renderAll();
   });
 });
@@ -1468,6 +1507,7 @@ function calcular(){
   else { verdictClass='warn'; verdictText=`Faltan ${checks.filter(c=>!c.pass).length} punto(s) del checklist`; }
 
   document.getElementById('decisionOut').innerHTML = `
+    ${bloqueErroresBitacora()}
     <div class="decision-panel">
       <h3>Checklist de reglas — ${mercado}</h3>
       <ul class="checklist">${checks.map(c=>`<li class="${c.pass?'pass':'fail'}"><span class="dot"></span>${c.label}</li>`).join('')}</ul>
@@ -1489,6 +1529,7 @@ document.getElementById('btnCalcular').addEventListener('click', calcular);
 document.getElementById('formNuevo').addEventListener('submit', async (e)=>{
   e.preventDefault();
   if(!lastCalc){ calcular(); if(!lastCalc) return; }
+  if(!confirmarConErrores()) return; // Bitácora con errores: te da el chance de corregir antes de registrar
   const rec = {
     id: 'g'+Date.now(), estado:'Abierto',
     fecha: document.getElementById('f_fecha').value || getHoy(),
@@ -2351,6 +2392,7 @@ document.getElementById('scBtnCalcular').addEventListener('click', scCalcular);
 document.getElementById('formScoutCore').addEventListener('submit', (e)=>{
   e.preventDefault();
   if(!scLastCalc){ scCalcular(); if(!scLastCalc) return; }
+  if(!confirmarConErrores()) return;
   const c = scLastCalc;
   const mejor = [...c.filas].sort((a,b)=>b.ev-a.ev)[0];
   const rec = {
@@ -2600,7 +2642,8 @@ document.getElementById('btnActivarDia').addEventListener('click', async ()=>{
     const res = await apiPost({action:'bitacora_activar_dia', fecha:getHoy()});
     if(res && res.ok){
       await refreshBitacoraHoy();
-      renderMetas();
+      await refreshBitacoraTabla();
+      renderMetas(); renderLinea2Todo();
       alert(res.ya_existia ? `Hoy ya estaba activada como Día ${res.dia}.` : `Listo — hoy quedó activada como Día ${res.dia} de Bitácora.`);
     } else {
       alert('No se pudo activar: '+(res&&res.error?res.error:'error desconocido'));
@@ -2624,7 +2667,8 @@ document.getElementById('btnFixBitacora').addEventListener('click', async ()=>{
     const res = await apiPost({action:'bitacora_set', fecha:getHoy(), campo, valor});
     if(res && res.ok){
       await refreshBitacoraHoy();
-      renderMetas();
+      await refreshBitacoraTabla();
+      renderMetas(); renderLinea2Todo();
       alert(`Corregido. ${campo} de hoy = ${valor}`);
       document.getElementById('fixValor').value = '';
     } else {
@@ -2839,6 +2883,7 @@ document.getElementById('editGuardar').addEventListener('click', ()=>{
 
 function renderAll(){
   renderStatus(); renderAbiertos(); renderHistorial(); renderMetas(); renderScoutCore();
+  renderLinea2Todo();
 }
 
 /* ============ MOTIVACIONES (pestaña Principal) ============ */
@@ -2927,8 +2972,284 @@ espejarCampo('f_fecha','sc_fecha');
 renderQualPrompts();
 renderPerfilLigaWidgets();
 
+/* ============ LÍNEA 2 (all-in) + VERIFICACIÓN DE BITÁCORA ============
+   Reglas:
+   - Gambito nunca recibe dinero de la Línea 2. El Sheet deja al día siguiente MIN(BR real, BR planificado):
+     si cierras sobre el plan, solo queda +1 stake y el excedente sale hacia la Línea 2.
+   - De la Línea 2 solo se anota el TOTAL al cerrar el día (no las operaciones).
+   - Con 15 o más disponibles, se reparte en 3 apuestas iguales.
+   - Todo se lee de una copia local de la Bitácora: funciona sin señal. Los cierres escritos sin señal
+     quedan en este dispositivo y suben solos al volver la conexión.
+   - Antes de operar, la app revisa la Bitácora y marca en rojo qué día, fila y columna tienen el error. */
+/* Premeditatio malorum: una sola frase, visible antes de cualquier operación (Nuevo registro, Scout Core y Reglas).
+   Para cambiarla, edita solo esta constante. */
+const FRASE_PREMEDITATIO = 'Planifico para el éxito y me preparo para el fallo: ejecutaré el plan si nada me lo impide, y si algo sale mal, el sistema ya tiene la respuesta.';
+document.querySelectorAll('[data-premeditatio]').forEach(el=>{ el.textContent = FRASE_PREMEDITATIO; });
+const L2_MIN_TRIPLE = 15;
+function l2Esc(t){ return String(t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function l2Money(v){ return '$'+(+v).toFixed(2); }
+function l2Num(v){ return (v===''||v===null||v===undefined||isNaN(+v)) ? null : +v; }
+function l2R2(v){ return Math.round(v*100)/100; }
+function guardarL2Pend(){ try{ localStorage.setItem(L2_PEND_KEY, JSON.stringify(l2Pend)); }catch(e){} }
+
+async function refreshBitacoraTabla(){
+  if(!ENDPOINT) return;
+  try{
+    const t = await apiGet('bitacora_all');
+    if(t && t.ok && Array.isArray(t.filas)){
+      l2ScriptViejo = false;
+      bitacoraTabla = {ts:Date.now(), l2Listo:t.l2Listo!==false, sheetUrl:t.sheetUrl||'', filas:t.filas, huerfanos:t.huerfanos||[], plTexto:t.plTexto||[]};
+      try{ localStorage.setItem(BITACORA_TABLA_KEY, JSON.stringify(bitacoraTabla)); }catch(e){}
+    } else if(t && t.error && /no reconocida/i.test(t.error)){
+      l2ScriptViejo = true;
+    }
+  }catch(e){ /* sin conexión: se queda con la última copia local */ }
+}
+
+async function flushL2(){
+  if(!ENDPOINT) return;
+  const fechas = Object.keys(l2Pend);
+  if(!fechas.length) return;
+  l2UltimoError = '';
+  for(const f of fechas){
+    try{
+      const res = await apiPost({action:'bitacora_set', fecha:f, campo:'Saldo L2 cierre', valor:l2Pend[f]});
+      if(res && res.ok){
+        if(bitacoraTabla){ const fila = bitacoraTabla.filas.find(x=>x.fecha===f); if(fila) fila['Saldo L2 cierre'] = l2Pend[f]; }
+        delete l2Pend[f];
+      } else {
+        l2UltimoError = (res && res.error) ? res.error : 'error desconocido';
+      }
+    }catch(e){ l2UltimoError = (e && e.message) ? e.message : String(e); break; }
+  }
+  guardarL2Pend();
+  if(bitacoraTabla){ try{ localStorage.setItem(BITACORA_TABLA_KEY, JSON.stringify(bitacoraTabla)); }catch(e){} }
+}
+
+function l2Filas(){
+  if(!bitacoraTabla) return [];
+  return bitacoraTabla.filas.map(f=>{
+    const g = Object.assign({}, f);
+    if(l2Pend[g.fecha]!==undefined) g['Saldo L2 cierre'] = l2Pend[g.fecha];
+    return g;
+  }).sort((a,b)=> a.fecha<b.fecha ? -1 : (a.fecha>b.fecha ? 1 : 0));
+}
+function l2Estado(){
+  const filas = l2Filas(), hoy = getHoy();
+  let vigente = 0, ultimoCierre = null, firme = 0, hoyProv = 0;
+  filas.forEach(f=>{
+    const k = l2Num(f['Saldo L2 cierre']);
+    if(k!==null){ vigente = k; ultimoCierre = f.fecha; firme = 0; hoyProv = 0; return; }
+    const j = l2Num(f['Excedente L2']) || 0;
+    if(f.fecha < hoy) firme += j; else if(f.fecha === hoy) hoyProv += j;
+  });
+  firme = l2R2(firme); hoyProv = l2R2(hoyProv);
+  const disponible = l2R2(vigente + firme);
+  let apuestas = 0, monto = 0, sobrante = 0;
+  if(disponible > 0){
+    apuestas = disponible >= L2_MIN_TRIPLE ? 3 : 1;
+    monto = Math.floor(disponible/apuestas*100)/100;
+    sobrante = l2R2(disponible - monto*apuestas);
+  }
+  return {filas, vigente, ultimoCierre, firme, hoyProv, disponible, apuestas, monto, sobrante};
+}
+// Total esperado de un día si tus all-in terminaran sin ganar ni perder: saldo anterior + excedentes hasta ese día.
+function l2BaseParaFecha(fecha){
+  let prev = 0, exc = 0;
+  for(const f of l2Filas()){
+    if(f.fecha > fecha) break;
+    const k = l2Num(f['Saldo L2 cierre']);
+    if(f.fecha < fecha && k!==null){ prev = k; exc = 0; continue; }
+    exc += l2Num(f['Excedente L2']) || 0;
+  }
+  return {prev:l2R2(prev), exc:l2R2(exc), sinResultado:l2R2(prev+exc)};
+}
+
+/* ---- Verificación de Bitácora ---- */
+const L2_MAPA_MSG = [
+  ['Fecha con formato','fecha','H'], ['Fecha repetida','fecha','H'], ['La fecha no es posterior','fecha','H'],
+  ['Bank roll inicial','Bank roll inicial','A'], ['Stake distinto','stake','B'], ['Residuo','Reserva','E'],
+  ['Saldo L2 no numerico','Saldo L2 cierre','K'], ['Falta cerrar','Saldo L2 cierre','K'],
+  ['P/L guardado como texto','pl (Registros)','AP']
+];
+function verificarBitacora(){
+  const errores = [];
+  if(!bitacoraTabla) return errores;
+  bitacoraTabla.filas.forEach(f=>{
+    let texto = String(f['Chequeo']||'').trim();
+    if(l2Pend[f.fecha]!==undefined) texto = texto.replace('Falta cerrar el Saldo L2 de este dia.','').trim();
+    if(!texto) return;
+    texto.split(/(?<=\.)\s+/).filter(Boolean).forEach(frase=>{
+      const m = L2_MAPA_MSG.find(x=>frase.indexOf(x[0])!==-1);
+      errores.push({dia:f['Dia'], fecha:f.fecha, fila:f.fila, columna:m?m[1]:'fila', letra:m?m[2]:'A', mensaje:frase, enBitacora:!(m && m[2]==='AP')});
+    });
+  });
+  bitacoraTabla.filas.forEach(f=>{ // verificación independiente de las fórmulas
+    const A = l2Num(f['Bank roll inicial']), D = l2Num(f['BR final real']);
+    if(A===null || D===null) return;
+    const dif = l2R2(D-A), suma = l2R2(+f.suma_pl_registros||0);
+    if(Math.abs(dif-suma) > 0.01){
+      errores.push({dia:f['Dia'], fecha:f.fecha, fila:f.fila, columna:'BR final real', letra:'D', enBitacora:true,
+        mensaje:`BR final real − Bank roll inicial = ${l2Money(dif)}, pero la suma de P/L de ese día en Registros es ${l2Money(suma)}.`});
+    }
+  });
+  (bitacoraTabla.huerfanos||[]).forEach(h=>{
+    errores.push({dia:'—', fecha:h.fecha||'(vacía)', fila:'', columna:'fecha (Registros)', letra:'', enBitacora:false,
+      mensaje:`El registro "${h.partido||h.id}" (P/L ${l2Money(h.pl)}) tiene fecha ${h.fecha||'vacía'} y ese día no existe en Bitácora: no suma al bankroll.`});
+  });
+  (bitacoraTabla.plTexto||[]).forEach(h=>{
+    errores.push({dia:'—', fecha:h.fecha||'(vacía)', fila:'', columna:'pl (Registros)', letra:'', enBitacora:false,
+      mensaje:`El registro "${h.partido||h.id}" tiene el P/L guardado como texto ("${h.pl}"): no suma al bankroll.`});
+  });
+  return errores;
+}
+function l2Ubicacion(e){
+  const partes = [];
+  if(e.dia!=='—' && e.dia!=='' && e.dia!==undefined) partes.push('Día '+e.dia);
+  partes.push(e.fecha);
+  if(e.fila) partes.push('fila '+e.fila+' del Sheet');
+  partes.push('columna '+e.columna+(e.letra&&e.enBitacora?' ('+e.letra+')':''));
+  return partes.join(' · ');
+}
+function bloqueErroresBitacora(){
+  const errs = verificarBitacora();
+  if(!errs.length) return '';
+  return `<div style="border:1px solid var(--red); background:oklch(0.22 0.08 24 / 55%); border-radius:8px; padding:10px 12px; margin:12px 0; font-size:12px;">
+    <b style="color:var(--red);">⚠ La Bitácora tiene ${errs.length} error(es) — revísalos antes de operar.</b>
+    ${errs.slice(0,3).map(e=>`<div style="margin-top:6px;"><span style="color:var(--text-mute);">${l2Esc(l2Ubicacion(e))}</span><br>${l2Esc(e.mensaje)}</div>`).join('')}
+    ${errs.length>3?`<div style="margin-top:6px;color:var(--text-mute);">…y ${errs.length-3} más en la pestaña 06 · Metas.</div>`:''}
+  </div>`;
+}
+function confirmarConErrores(){
+  const errs = verificarBitacora();
+  if(!errs.length) return true;
+  const lista = errs.slice(0,5).map(e=>'• '+l2Ubicacion(e)+'\n   '+e.mensaje).join('\n');
+  return confirm(`⚠ La Bitácora tiene ${errs.length} error(es) en rojo:\n\n${lista}${errs.length>5?'\n…':''}\n\nAceptar = registrar igual.\nCancelar = ir a corregir primero (pestaña 06 · Metas).`);
+}
+
+/* ---- Pintado ---- */
+function renderChequeo(){
+  const banner = document.getElementById('bitacoraErrBanner');
+  const card = document.getElementById('chequeoLista');
+  if(!banner || !card) return;
+  const errs = verificarBitacora();
+  const edadH = bitacoraTabla ? (Date.now()-bitacoraTabla.ts)/3600000 : null;
+  const edadTxt = bitacoraTabla
+    ? (edadH<1 ? 'hace menos de 1 h' : 'hace '+Math.round(edadH)+' h')+(navigator.onLine?'':' (sin conexión)')
+    : '';
+  if(errs.length){
+    const e0 = errs[0];
+    banner.style.display = 'block';
+    banner.innerHTML = `<b>BITÁCORA CON ${errs.length} ERROR${errs.length>1?'ES':''}.</b> ${l2Esc(l2Ubicacion(e0))}: ${l2Esc(e0.mensaje)} ${errs.length>1?'<u>Toca para ver todos.</u>':'<u>Toca para ver el detalle.</u>'}`;
+  } else banner.style.display = 'none';
+
+  let html = '';
+  if(!bitacoraTabla){
+    html = `<p style="color:var(--text-mute); font-size:11.5px;">Todavía no hay copia de la Bitácora en este dispositivo. Se descarga al sincronizar con señal.</p>`;
+  } else if(!errs.length){
+    html = `<p style="color:var(--green); font-size:12px;">✓ Sin errores en Bitácora. <span style="color:var(--text-mute);">Copia del Sheet de ${edadTxt}.</span></p>`;
+  } else {
+    html = errs.map(e=>{
+      const link = (e.enBitacora && bitacoraTabla.sheetUrl && e.fila) ? ` <a href="${l2Esc(bitacoraTabla.sheetUrl)}&range=${e.letra}${e.fila}" target="_blank" rel="noopener" style="color:var(--teal);">Abrir en el Sheet</a>` : '';
+      return `<div style="border-left:3px solid var(--red); background:oklch(0.22 0.08 24 / 35%); padding:8px 10px; margin-bottom:8px; border-radius:0 6px 6px 0; font-size:12px;">
+        <b style="color:var(--red);">${l2Esc(l2Ubicacion(e))}</b><br>${l2Esc(e.mensaje)}${link}</div>`;
+    }).join('') + `<p style="color:var(--text-mute); font-size:11px;">Copia del Sheet de ${edadTxt}. Corrige en el Sheet y sincroniza: el aviso desaparece solo.</p>`;
+  }
+  if(OUTBOX.length>0){
+    html += `<p style="color:var(--amber); font-size:11.5px; margin-top:6px;">${OUTBOX.length} operación(es) todavía sin subir: el BR real del Sheet aún no las incluye.</p>`;
+  }
+  card.innerHTML = html;
+}
+
+function renderLinea2(){
+  const cont = document.getElementById('l2Resumen');
+  if(!cont) return;
+  const rojo = (t)=>`<p style="color:var(--red); font-size:12px;">${t}</p>`;
+  const pendN = Object.keys(l2Pend).length;
+  if(l2ScriptViejo){ cont.innerHTML = rojo('El Apps Script desplegado es una versión anterior. Pega el nuevo código y vuelve a implementar (Gestionar implementaciones → ✏️ → Nueva versión).'); return; }
+  if(!bitacoraTabla){ cont.innerHTML = `<p style="color:var(--text-mute); font-size:11.5px;">Todavía no hay copia de la Bitácora en este dispositivo. Se descarga al sincronizar con señal.</p>`; return; }
+  if(bitacoraTabla.l2Listo===false){ cont.innerHTML = rojo('Faltan las columnas de Línea 2 en la pestaña Bitacora del Sheet (J a N: Excedente L2, Saldo L2 cierre, Resultado L2 dia, Saldo L2 vigente, Chequeo). Agrégalas como indica el README.'); return; }
+
+  const e = l2Estado();
+  const siguiente = e.disponible<=0
+    ? 'Sin saldo disponible: la Línea 2 se reactiva con el próximo excedente.'
+    : (e.apuestas===3
+        ? `<b style="color:var(--amber);">3 apuestas all-in de ${l2Money(e.monto)}</b>`
+        : `<b style="color:var(--amber);">1 apuesta all-in de ${l2Money(e.monto)}</b> <span style="color:var(--text-mute);">(a partir de ${l2Money(L2_MIN_TRIPLE)} se divide en 3)</span>`)
+      + (e.sobrante>0 ? ` <span style="color:var(--text-mute);">· sobran ${l2Money(e.sobrante)} por redondeo</span>` : '');
+  cont.innerHTML = `
+    <p style="font-size:12px; line-height:1.7;">
+      Saldo L2 vigente: <b>${l2Money(e.vigente)}</b> <span style="color:var(--text-mute);">${e.ultimoCierre?'(cierre del '+e.ultimoCierre+')':'(sin cierres aún)'}</span><br>
+      Excedente de días cerrados por pasar: <b>${l2Money(e.firme)}</b><br>
+      Excedente de hoy (provisional, aún no cuenta): <b style="color:var(--text-dim);">${l2Money(e.hoyProv)}</b><br>
+      Disponible para la Línea 2: <b>${l2Money(e.disponible)}</b><br>
+      Siguiente tanda: ${siguiente}
+    </p>
+    ${pendN>0?`<p style="color:var(--amber); font-size:11.5px;">${pendN} cierre(s) guardado(s) en este dispositivo, pendiente(s) de subir al Sheet.${l2UltimoError?' Último error: '+l2Esc(l2UltimoError):''}</p>`:''}`;
+
+  // Selector de día a cerrar (se conserva la selección actual)
+  const sel = document.getElementById('l2Fecha');
+  const dias = e.filas.slice(-14).reverse();
+  const actual = sel.value;
+  const hoy = getHoy();
+  sel.innerHTML = dias.map(f=>`<option value="${f.fecha}">Día ${f['Dia']} · ${f.fecha}${f.fecha===hoy?' (hoy)':''}</option>`).join('');
+  const preferido = dias.find(f=>f.fecha===actual) ? actual : (dias.find(f=>f.fecha===hoy) ? hoy : (dias[0]?dias[0].fecha:''));
+  sel.value = preferido;
+  actualizarBaseL2();
+
+  // Historial reciente (resultado calculado en local para que incluya cierres pendientes)
+  let prev = 0;
+  const filasTabla = e.filas.map(f=>{
+    const k = l2Num(f['Saldo L2 cierre']), j = l2Num(f['Excedente L2']);
+    const res = (k!==null) ? l2R2(k - prev - (j||0)) : null;
+    if(k!==null) prev = k;
+    return {f, k, j, res};
+  }).slice(-10).reverse();
+  document.getElementById('l2Historial').innerHTML = `<table style="font-size:11.5px;"><thead><tr><th>Día</th><th>Fecha</th><th>Excedente</th><th>Cierre L2</th><th>Resultado all-in</th></tr></thead><tbody>${
+    filasTabla.map(({f,k,j,res})=>`<tr><td>${f['Dia']}</td><td>${f.fecha}</td><td>${j===null?'—':l2Money(j)}</td><td>${k===null?'—':l2Money(k)+(l2Pend[f.fecha]!==undefined?' ⏳':'')}</td><td style="color:${res===null?'inherit':(res>=0?'var(--green)':'var(--red)')};">${res===null?'—':(res>=0?'+':'')+l2Money(res).replace('$-','-$')}</td></tr>`).join('')
+  }</tbody></table>`;
+}
+function actualizarBaseL2(){
+  const sel = document.getElementById('l2Fecha'), out = document.getElementById('l2Base');
+  if(!sel || !out) return;
+  if(!sel.value){ out.textContent = ''; return; }
+  const b = l2BaseParaFecha(sel.value);
+  out.textContent = `Si tus all-in de ese día terminaron en tablas, el total sería ${l2Money(b.sinResultado)} (saldo anterior ${l2Money(b.prev)} + excedente ${l2Money(b.exc)}).`;
+}
+function renderLinea2Todo(){
+  try{ renderLinea2(); }catch(e){ console.error('L2', e); }
+  try{ renderChequeo(); }catch(e){ console.error('Chequeo', e); }
+}
+
+document.getElementById('l2Fecha').addEventListener('change', actualizarBaseL2);
+document.getElementById('bitacoraErrBanner').addEventListener('click', ()=>{
+  document.querySelector('nav.tabs button[data-tab="metas"]').click();
+  const c = document.getElementById('cardChequeo'); if(c) c.scrollIntoView({behavior:'smooth', block:'start'});
+});
+document.getElementById('btnGuardarL2').addEventListener('click', async ()=>{
+  const msg = document.getElementById('l2Msg');
+  const mostrar = (ok, t)=>{ msg.style.display='block'; msg.style.color = ok?'var(--green)':'var(--red)'; msg.textContent = t; };
+  const fecha = document.getElementById('l2Fecha').value;
+  if(!fecha){ mostrar(false, 'No hay un día activado en Bitácora todavía.'); return; }
+  const raw = document.getElementById('l2Total').value.trim().replace(',', '.');
+  const v = Number(raw);
+  if(raw==='' || !isFinite(v) || v<0){ mostrar(false, 'Escribe el total de la Línea 2 como número mayor o igual a 0 (ej. 3.40).'); return; }
+  const valor = l2R2(v);
+  const base = l2BaseParaFecha(fecha);
+  if(valor > l2R2(base.sinResultado*50) && base.sinResultado>0 && !confirm(`Anotaste ${l2Money(valor)}, más de 50 veces lo esperado en tablas (${l2Money(base.sinResultado)}). ¿Es correcto?`)) return;
+  l2Pend[fecha] = valor; guardarL2Pend();
+  document.getElementById('l2Total').value = '';
+  renderLinea2Todo();
+  mostrar(true, `Guardado en este dispositivo: Línea 2 de ${fecha} = ${l2Money(valor)}.`);
+  await flushL2();
+  if(Object.keys(l2Pend).length===0){ await refreshBitacoraTabla(); mostrar(true, `Guardado y subido al Sheet: Línea 2 de ${fecha} = ${l2Money(valor)}.`); }
+  else if(!navigator.onLine || !ENDPOINT){ mostrar(true, `Guardado en este dispositivo (${l2Money(valor)}). Subirá solo cuando haya señal.`); }
+  else { mostrar(false, 'No se pudo subir al Sheet: '+(l2UltimoError||'sin detalle')+'. Queda guardado aquí y se reintenta solo.'); }
+  renderLinea2Todo();
+});
+
 /* ============ OFFLINE: reconexión, almacenamiento persistente, nueva versión ============ */
-window.addEventListener('online', ()=>{ flushOutbox(); renderAllSafe(); });   // sube lo registrado sin señal en cuanto vuelve la conexión
+window.addEventListener('online', async ()=>{ await flushOutbox(); await flushL2(); await refreshBitacoraTabla(); renderAllSafe(); });   // sube lo registrado sin señal en cuanto vuelve la conexión
 window.addEventListener('offline', ()=>{ renderAllSafe(); });
 async function pedirAlmacenamientoPersistente(){
   // Evita que el navegador borre los datos locales (registros + bandeja pendiente) si el teléfono se queda sin espacio.

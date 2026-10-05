@@ -8,7 +8,10 @@
 const TZ = 'America/Guayaquil'; // Ecuador, sin horario de verano
 
 const BITACORA_SHEET_NAME = 'Bitacora';
-const BITACORA_HEADERS = ['Bank roll inicial','stake','BR final planificado','BR final real','Reserva','Dif','Dia','fecha','Meta'];
+const BITACORA_HEADERS = ['Bank roll inicial','stake','BR final planificado','BR final real','Reserva','Dif','Dia','fecha','Meta',
+  'Excedente L2','Saldo L2 cierre','Resultado L2 dia','Saldo L2 vigente','Chequeo'];
+// Columnas calculadas por el Sheet: la app NO puede escribirlas (así no se pisan las fórmulas por accidente).
+const BITACORA_SOLO_LECTURA = ['stake','BR final planificado','Reserva','Dif','Excedente L2','Resultado L2 dia','Saldo L2 vigente','Chequeo'];
 
 const REGISTROS_HEADERS = [
   'id','estado','fecha','minuto_entrada','score_entrada','partido','liga',
@@ -74,6 +77,7 @@ function doGet(e) {
   const collection = e.parameter.collection || 'registros';
   if (action === 'list') return jsonResponse(getAllRecords(collection));
   if (action === 'bitacora') return jsonResponse(getBitacoraRow(e.parameter.fecha));
+  if (action === 'bitacora_all') return jsonResponse(getBitacoraAll());
   return jsonResponse({ error: 'accion no reconocida' });
 }
 
@@ -84,12 +88,24 @@ function doPost(e) {
   } catch (err) {
     return jsonResponse({ error: 'payload invalido' });
   }
-  if (data.action === 'bitacora_set') return jsonResponse(setBitacoraValue(data.fecha, data.campo, data.valor));
-  if (data.action === 'bitacora_activar_dia') return jsonResponse(activarDiaBitacora(data.fecha));
-  const collection = data.collection || 'registros';
-  if (data.action === 'create') return jsonResponse(createRecord(collection, data.record));
-  if (data.action === 'update') return jsonResponse(updateRecord(collection, data.id, data.record));
-  return jsonResponse({ error: 'accion no reconocida' });
+  // Candado: con la bandeja de salida offline pueden llegar varios envíos casi a la vez;
+  // sin esto, dos creaciones simultáneas pueden escribir en la misma fila.
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(20000);
+  } catch (err) {
+    return jsonResponse({ ok: false, error: 'servidor ocupado, reintenta' });
+  }
+  try {
+    if (data.action === 'bitacora_set') return jsonResponse(setBitacoraValue(data.fecha, data.campo, data.valor));
+    if (data.action === 'bitacora_activar_dia') return jsonResponse(activarDiaBitacora(data.fecha));
+    const collection = data.collection || 'registros';
+    if (data.action === 'create') return jsonResponse(createRecord(collection, data.record));
+    if (data.action === 'update') return jsonResponse(updateRecord(collection, data.id, data.record));
+    return jsonResponse({ error: 'accion no reconocida' });
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function activarDiaBitacora(fechaStr) {
@@ -128,6 +144,18 @@ function setBitacoraValue(fechaStr, campo, valor) {
   const fechaCol = BITACORA_HEADERS.indexOf('fecha');
   const campoCol = BITACORA_HEADERS.indexOf(campo);
   if (campoCol === -1) return { ok: false, error: 'campo invalido: ' + campo };
+  if (BITACORA_SOLO_LECTURA.indexOf(campo) !== -1) return { ok: false, error: 'el campo "' + campo + '" lo calcula el Sheet y no se puede escribir desde la app' };
+  if (campoCol + 1 > sheet.getMaxColumns()) return { ok: false, error: 'faltan las columnas de Linea 2 en Bitacora (J a N): agregalas como indica el README' };
+  if (campo === 'Saldo L2 cierre') {
+    // Único dato manual de la Línea 2: número >= 0, o vacío para borrar el cierre de ese día.
+    if (valor === '' || valor === null || valor === undefined) {
+      valor = '';
+    } else {
+      const n = Number(valor);
+      if (!isFinite(n) || n < 0) return { ok: false, error: 'Saldo L2 invalido: debe ser un numero mayor o igual a 0' };
+      valor = Math.round(n * 100) / 100;
+    }
+  }
   for (let i = 1; i < data.length; i++) {
     const cell = data[i][fechaCol];
     const cellStr = cell instanceof Date ? Utilities.formatDate(cell, TZ, 'yyyy-MM-dd') : String(cell || '').trim();
@@ -144,6 +172,17 @@ const DATE_FIELDS = new Set(['fecha', 'fecha_cierre', 'fecha_actualizacion']);
 function createRecord(collection, record) {
   const col = getCollection(collection);
   const sheet = getSheetFor(collection);
+  // Idempotente: si el envío llegó pero la respuesta se perdió (señal débil), la app reintenta
+  // el mismo 'create'. Si el id ya existe, se actualiza esa fila en vez de duplicarla.
+  const idCol = col.headers.indexOf('id');
+  if (record && record.id !== undefined && record.id !== '' && sheet.getLastRow() > 1) {
+    const ids = sheet.getRange(2, idCol + 1, sheet.getLastRow() - 1, 1).getValues();
+    for (let i = 0; i < ids.length; i++) {
+      if (String(ids[i][0]) === String(record.id)) {
+        return updateRecord(collection, record.id, record);
+      }
+    }
+  }
   const row = col.headers.map(h => (record[h] !== undefined ? record[h] : ''));
   const targetRow = sheet.getLastRow() + 1;
   col.headers.forEach((h, idx) => {
@@ -215,6 +254,75 @@ function getBitacoraRow(fechaStr) {
     }
   }
   return null; // no hay fila de Bitácora para esa fecha todavía
+}
+
+function fechaComoTexto(cell) {
+  if (cell instanceof Date) return Utilities.formatDate(cell, TZ, 'yyyy-MM-dd');
+  return String(cell === null || cell === undefined ? '' : cell).trim();
+}
+
+/**
+ * Foto completa de la Bitácora para la app (consulta offline + chequeos).
+ * Además cruza Registros de forma independiente de las fórmulas del Sheet:
+ *  - suma_pl_registros por día (para comparar contra BR final real − Bank roll inicial)
+ *  - huerfanos: registros con P/L cuya fecha no existe en Bitácora (no suman al bankroll)
+ *  - plTexto: registros con P/L guardado como texto (SUMIFS lo ignora)
+ */
+function getBitacoraAll() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(BITACORA_SHEET_NAME);
+  if (!sheet) return { ok: false, error: 'no existe la pestana Bitacora' };
+  const nCols = Math.min(sheet.getMaxColumns(), BITACORA_HEADERS.length);
+  const lastRow = sheet.getLastRow();
+  const data = lastRow >= 1 ? sheet.getRange(1, 1, lastRow, nCols).getValues() : [];
+  const cabecera = data.length ? data[0] : [];
+  const l2Listo = BITACORA_HEADERS.slice(9).every(function (h, i) { return String(cabecera[9 + i] || '').trim() === h; });
+  const fechaCol = BITACORA_HEADERS.indexOf('fecha');
+  const filas = [];
+  const fechas = {};
+  for (let i = 1; i < data.length; i++) {
+    const fecha = fechaComoTexto(data[i][fechaCol]);
+    if (!fecha) continue; // filas futuras sin activar
+    const obj = { fila: i + 1 };
+    BITACORA_HEADERS.forEach(function (h, idx) {
+      obj[h] = idx < nCols ? normalizeCell(data[i][idx]) : '';
+    });
+    obj.fecha = fecha;
+    fechas[fecha] = true;
+    filas.push(obj);
+  }
+  // Cruce con Registros
+  const col = getCollection('registros');
+  const regSheet = getSheetFor('registros');
+  const sumaPorFecha = {};
+  const huerfanos = [];
+  const plTexto = [];
+  const lastReg = regSheet.getLastRow();
+  if (lastReg > 1) {
+    const iId = col.headers.indexOf('id'), iFecha = col.headers.indexOf('fecha');
+    const iPl = col.headers.indexOf('pl'), iPartido = col.headers.indexOf('partido');
+    const reg = regSheet.getRange(2, 1, lastReg - 1, col.headers.length).getValues();
+    reg.forEach(function (row) {
+      const pl = row[iPl];
+      if (pl === '' || pl === null) return; // abierto o sin cerrar
+      const f = fechaComoTexto(row[iFecha]);
+      const base = { id: row[iId], fecha: f, partido: row[iPartido] };
+      if (typeof pl !== 'number') { base.pl = String(pl); plTexto.push(base); return; }
+      base.pl = pl;
+      if (!f || !fechas[f]) { huerfanos.push(base); return; }
+      sumaPorFecha[f] = (sumaPorFecha[f] || 0) + pl;
+    });
+  }
+  filas.forEach(function (f) { f.suma_pl_registros = Math.round((sumaPorFecha[f.fecha] || 0) * 100) / 100; });
+  return {
+    ok: true,
+    ts: Date.now(),
+    l2Listo: l2Listo,
+    sheetUrl: ss.getUrl() + '#gid=' + sheet.getSheetId(),
+    filas: filas,
+    huerfanos: huerfanos,
+    plTexto: plTexto
+  };
 }
 
 function jsonResponse(obj) {
