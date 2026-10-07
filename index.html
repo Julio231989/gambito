@@ -52,7 +52,7 @@
   .premeditatio{border-left:3px solid var(--teal); background:oklch(0.22 0.04 174 / 40%); padding:10px 14px; border-radius:0 8px 8px 0; margin:0 0 14px; }
   .premeditatio small{display:block; color:var(--teal); font-size:9.5px; letter-spacing:.18em; text-transform:uppercase; font-weight:600; margin-bottom:4px;}
   .premeditatio p{font-size:13px; line-height:1.5; color:var(--text); font-style:italic; margin:0;}
-  #bitacoraErrBanner{display:none; cursor:pointer; background:oklch(0.22 0.08 24 / 70%); border:2px solid var(--red); color:oklch(0.93 0.04 20); padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:12px; box-shadow:0 4px 16px oklch(0 0 0 / 25%);}
+  #bitacoraErrBanner{display:none; cursor:pointer; background:oklch(0.22 0.08 24 / 55%); border:1px solid var(--red); color:oklch(0.93 0.04 20); padding:5px 10px; border-radius:6px; margin-bottom:8px; font-size:11px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   #bitacoraErrBanner b{color:var(--red);}
   #stoplossBanner.info{background:oklch(0.22 0.06 174 / 45%); border-color:var(--teal); color:oklch(0.90 0.05 174);}
   #stoplossBanner b{color:inherit;}
@@ -628,15 +628,15 @@ hoy, sin retroceso, conquistaré la contienda.</p>
     </div>
 
     <div class="rule-card limits" id="cardL2" style="margin-top:16px;">
-      <h3>Línea 2 — all-in (independiente de Gambito)</h3>
-      <p style="color:var(--text-dim); font-size:11.5px; margin-bottom:10px;">Solo recibe el excedente que Gambito genera sobre su plan. Nunca intercambia dinero con Gambito y no se registran sus operaciones: al cerrar el día anotas el total.</p>
+      <h3>Línea G3 — pseudo-Gambito ÷ 3 (all-in de prueba)</h3>
+      <p style="color:var(--text-dim); font-size:11.5px; margin-bottom:10px;">Pseudo-Gambito dividido entre 3, mezclada con Gambito solo como prueba. Solo recibe el excedente que Gambito genera sobre su plan, nunca intercambia dinero con Gambito y no se registran sus operaciones: al cerrar el día anotas el total.</p>
       <div id="l2Resumen"></div>
       <div class="row2" style="margin-top:10px;">
         <div><label>Día a cerrar</label><select id="l2Fecha"></select></div>
-        <div><label>Total de la Línea 2 al cerrar ($)</label><input type="text" inputmode="decimal" id="l2Total" placeholder="ej. 3.40"></div>
+        <div><label>Total de G3 al cerrar el día ($)</label><input type="text" inputmode="decimal" id="l2Total" placeholder="ej. 3.40"></div>
       </div>
       <p id="l2Base" style="color:var(--text-mute); font-size:11px; margin-top:6px;"></p>
-      <button class="btn small" id="btnGuardarL2" style="width:100%; margin-top:10px;">Guardar cierre de Línea 2</button>
+      <button class="btn small" id="btnGuardarL2" style="width:100%; margin-top:10px;">Guardar cierre de G3</button>
       <p id="l2Msg" style="display:none; font-size:11.5px; margin-top:8px;"></p>
       <div class="table-wrap" id="l2Historial" style="margin-top:12px;"></div>
     </div>
@@ -919,7 +919,7 @@ const BITACORA_CACHE_KEY = 'gambito_bitacora_hoy_v1';
 const BITACORA_TABLA_KEY = 'gambito_bitacora_tabla_v1';
 const L2_PEND_KEY = 'gambito_l2_pend_v1';
 let bitacoraTabla = null;      // copia local de toda la Bitácora (consulta offline)
-let l2Pend = {};               // cierres de Línea 2 escritos sin señal: {fecha: total}
+let l2Pend = {};               // cierres de G3 escritos sin señal: {fecha: total}
 let l2ScriptViejo = false;
 let l2UltimoError = '';
 try{ const s0 = localStorage.getItem(BITACORA_TABLA_KEY); if(s0) bitacoraTabla = JSON.parse(s0); }catch(e){}
@@ -2668,6 +2668,7 @@ document.getElementById('btnFixBitacora').addEventListener('click', async ()=>{
     if(res && res.ok){
       await refreshBitacoraHoy();
       await refreshBitacoraTabla();
+      if(campo==='BR final real') brManualSet(getHoy(), valor);
       renderMetas(); renderLinea2Todo();
       alert(`Corregido. ${campo} de hoy = ${valor}`);
       document.getElementById('fixValor').value = '';
@@ -2972,11 +2973,11 @@ espejarCampo('f_fecha','sc_fecha');
 renderQualPrompts();
 renderPerfilLigaWidgets();
 
-/* ============ LÍNEA 2 (all-in) + VERIFICACIÓN DE BITÁCORA ============
+/* ============ LÍNEA G3 (all-in ÷ 3) + VERIFICACIÓN DE BITÁCORA ============
    Reglas:
-   - Gambito nunca recibe dinero de la Línea 2. El Sheet deja al día siguiente MIN(BR real, BR planificado):
-     si cierras sobre el plan, solo queda +1 stake y el excedente sale hacia la Línea 2.
-   - De la Línea 2 solo se anota el TOTAL al cerrar el día (no las operaciones).
+   - Gambito nunca recibe dinero de G3. El Sheet deja al día siguiente MIN(BR real, BR planificado):
+     si cierras sobre el plan, solo queda +1 stake y el excedente sale hacia G3.
+   - De G3 solo se anota el TOTAL al cerrar el día (no las operaciones).
    - Con 15 o más disponibles, se reparte en 3 apuestas iguales.
    - Todo se lee de una copia local de la Bitácora: funciona sin señal. Los cierres escritos sin señal
      quedan en este dispositivo y suben solos al volver la conexión.
@@ -3072,6 +3073,9 @@ const L2_MAPA_MSG = [
   ['Saldo L2 no numerico','Saldo L2 cierre','K'], ['Falta cerrar','Saldo L2 cierre','K'],
   ['P/L guardado como texto','pl (Registros)','AP']
 ];
+const BR_MANUAL_KEY = 'gambito_br_manual_v1';
+function brManual(){ try{ return JSON.parse(localStorage.getItem(BR_MANUAL_KEY)||'{}')||{}; }catch(e){ return {}; } }
+function brManualSet(fecha, v){ try{ const m = brManual(); m[fecha] = v; localStorage.setItem(BR_MANUAL_KEY, JSON.stringify(m)); }catch(e){} }
 function verificarBitacora(){
   const errores = [];
   if(!bitacoraTabla) return errores;
@@ -3081,28 +3085,33 @@ function verificarBitacora(){
     if(!texto) return;
     texto.split(/(?<=\.)\s+/).filter(Boolean).forEach(frase=>{
       const m = L2_MAPA_MSG.find(x=>frase.indexOf(x[0])!==-1);
-      errores.push({dia:f['Dia'], fecha:f.fecha, fila:f.fila, columna:m?m[1]:'fila', letra:m?m[2]:'A', mensaje:frase, enBitacora:!(m && m[2]==='AP')});
+      errores.push({dia:f['Dia'], fecha:f.fecha, fila:f.fila, columna:m?m[1]:'fila', letra:m?m[2]:'A', mensaje:frase.replace(/Saldo L2/g,'Saldo G3'), enBitacora:!(m && m[2]==='AP'),
+        nivel:(m && m[1]==='fecha') ? 'error' : 'aviso'}); // solo los problemas de FECHA bloquean; lo demás (P/L, residuo, cierres) es aviso
     });
   });
   bitacoraTabla.filas.forEach(f=>{ // verificación independiente de las fórmulas
     const A = l2Num(f['Bank roll inicial']), D = l2Num(f['BR final real']);
     if(A===null || D===null) return;
     const dif = l2R2(D-A), suma = l2R2(+f.suma_pl_registros||0);
+    const man = brManual()[f.fecha];
+    if(man!==undefined && Math.abs(man-D) < 0.005) return; // BR final fijado a mano desde la app (operaste fuera de Gambito): no es discrepancia
     if(Math.abs(dif-suma) > 0.01){
-      errores.push({dia:f['Dia'], fecha:f.fecha, fila:f.fila, columna:'BR final real', letra:'D', enBitacora:true,
+      errores.push({dia:f['Dia'], fecha:f.fecha, fila:f.fila, columna:'BR final real', letra:'D', enBitacora:true, nivel:'aviso',
         mensaje:`BR final real − Bank roll inicial = ${l2Money(dif)}, pero la suma de P/L de ese día en Registros es ${l2Money(suma)}.`});
     }
   });
   (bitacoraTabla.huerfanos||[]).forEach(h=>{
-    errores.push({dia:'—', fecha:h.fecha||'(vacía)', fila:'', columna:'fecha (Registros)', letra:'', enBitacora:false,
+    errores.push({dia:'—', fecha:h.fecha||'(vacía)', fila:'', columna:'fecha (Registros)', letra:'', enBitacora:false, nivel:'aviso',
       mensaje:`El registro "${h.partido||h.id}" (P/L ${l2Money(h.pl)}) tiene fecha ${h.fecha||'vacía'} y ese día no existe en Bitácora: no suma al bankroll.`});
   });
   (bitacoraTabla.plTexto||[]).forEach(h=>{
-    errores.push({dia:'—', fecha:h.fecha||'(vacía)', fila:'', columna:'pl (Registros)', letra:'', enBitacora:false,
+    errores.push({dia:'—', fecha:h.fecha||'(vacía)', fila:'', columna:'pl (Registros)', letra:'', enBitacora:false, nivel:'aviso',
       mensaje:`El registro "${h.partido||h.id}" tiene el P/L guardado como texto ("${h.pl}"): no suma al bankroll.`});
   });
   return errores;
 }
+function erroresDuros(){ return verificarBitacora().filter(e=>e.nivel==='error'); }
+function avisosPL(){ return verificarBitacora().filter(e=>e.nivel!=='error'); }
 function l2Ubicacion(e){
   const partes = [];
   if(e.dia!=='—' && e.dia!=='' && e.dia!==undefined) partes.push('Día '+e.dia);
@@ -3112,16 +3121,14 @@ function l2Ubicacion(e){
   return partes.join(' · ');
 }
 function bloqueErroresBitacora(){
-  const errs = verificarBitacora();
+  const errs = erroresDuros();
   if(!errs.length) return '';
-  return `<div style="border:1px solid var(--red); background:oklch(0.22 0.08 24 / 55%); border-radius:8px; padding:10px 12px; margin:12px 0; font-size:12px;">
-    <b style="color:var(--red);">⚠ La Bitácora tiene ${errs.length} error(es) — revísalos antes de operar.</b>
-    ${errs.slice(0,3).map(e=>`<div style="margin-top:6px;"><span style="color:var(--text-mute);">${l2Esc(l2Ubicacion(e))}</span><br>${l2Esc(e.mensaje)}</div>`).join('')}
-    ${errs.length>3?`<div style="margin-top:6px;color:var(--text-mute);">…y ${errs.length-3} más en la pestaña 06 · Metas.</div>`:''}
+  return `<div style="border:1px solid var(--red); background:oklch(0.22 0.08 24 / 45%); border-radius:6px; padding:5px 10px; margin:8px 0; font-size:11px;">
+    <b style="color:var(--red);">⚠ Fecha en Bitácora:</b> ${l2Esc(l2Ubicacion(errs[0]))}${errs.length>1?` (+${errs.length-1} más en 06 · Metas)`:''}
   </div>`;
 }
-function confirmarConErrores(){
-  const errs = verificarBitacora();
+function confirmarConErrores(){ // los avisos de P/L NO bloquean ni preguntan; solo errores de fecha
+  const errs = erroresDuros();
   if(!errs.length) return true;
   const lista = errs.slice(0,5).map(e=>'• '+l2Ubicacion(e)+'\n   '+e.mensaje).join('\n');
   return confirm(`⚠ La Bitácora tiene ${errs.length} error(es) en rojo:\n\n${lista}${errs.length>5?'\n…':''}\n\nAceptar = registrar igual.\nCancelar = ir a corregir primero (pestaña 06 · Metas).`);
@@ -3132,7 +3139,8 @@ function renderChequeo(){
   const banner = document.getElementById('bitacoraErrBanner');
   const card = document.getElementById('chequeoLista');
   if(!banner || !card) return;
-  const errs = verificarBitacora();
+  const todos = verificarBitacora();
+  const errs = todos.filter(e=>e.nivel==='error'), avisos = todos.filter(e=>e.nivel!=='error');
   const edadH = bitacoraTabla ? (Date.now()-bitacoraTabla.ts)/3600000 : null;
   const edadTxt = bitacoraTabla
     ? (edadH<1 ? 'hace menos de 1 h' : 'hace '+Math.round(edadH)+' h')+(navigator.onLine?'':' (sin conexión)')
@@ -3140,20 +3148,29 @@ function renderChequeo(){
   if(errs.length){
     const e0 = errs[0];
     banner.style.display = 'block';
-    banner.innerHTML = `<b>BITÁCORA CON ${errs.length} ERROR${errs.length>1?'ES':''}.</b> ${l2Esc(l2Ubicacion(e0))}: ${l2Esc(e0.mensaje)} ${errs.length>1?'<u>Toca para ver todos.</u>':'<u>Toca para ver el detalle.</u>'}`;
+    banner.innerHTML = `<b>Fecha en Bitácora${errs.length>1?' ('+errs.length+')':''}:</b> ${l2Esc(l2Ubicacion(e0))} <u>ver</u>`;
   } else banner.style.display = 'none';
 
   let html = '';
   if(!bitacoraTabla){
     html = `<p style="color:var(--text-mute); font-size:11.5px;">Todavía no hay copia de la Bitácora en este dispositivo. Se descarga al sincronizar con señal.</p>`;
-  } else if(!errs.length){
+  } else if(!errs.length && !avisos.length){
     html = `<p style="color:var(--green); font-size:12px;">✓ Sin errores en Bitácora. <span style="color:var(--text-mute);">Copia del Sheet de ${edadTxt}.</span></p>`;
   } else {
     html = errs.map(e=>{
       const link = (e.enBitacora && bitacoraTabla.sheetUrl && e.fila) ? ` <a href="${l2Esc(bitacoraTabla.sheetUrl)}&range=${e.letra}${e.fila}" target="_blank" rel="noopener" style="color:var(--teal);">Abrir en el Sheet</a>` : '';
       return `<div style="border-left:3px solid var(--red); background:oklch(0.22 0.08 24 / 35%); padding:8px 10px; margin-bottom:8px; border-radius:0 6px 6px 0; font-size:12px;">
         <b style="color:var(--red);">${l2Esc(l2Ubicacion(e))}</b><br>${l2Esc(e.mensaje)}${link}</div>`;
-    }).join('') + `<p style="color:var(--text-mute); font-size:11px;">Copia del Sheet de ${edadTxt}. Corrige en el Sheet y sincroniza: el aviso desaparece solo.</p>`;
+    }).join('');
+    if(avisos.length){
+      html += `<details style="font-size:11.5px; color:var(--text-mute);"><summary style="cursor:pointer;">ℹ ${avisos.length} aviso${avisos.length>1?'s':''} de P/L · no bloquean</summary>`
+        + avisos.map(e=>{
+          const link = (e.enBitacora && bitacoraTabla.sheetUrl && e.fila) ? ` <a href="${l2Esc(bitacoraTabla.sheetUrl)}&range=${e.letra}${e.fila}" target="_blank" rel="noopener" style="color:var(--teal);">Sheet</a>` : '';
+          return `<div style="border-left:2px solid var(--amber); padding:3px 8px; margin:5px 0;">${l2Esc(l2Ubicacion(e))}<br>${l2Esc(e.mensaje)}${link}</div>`;
+        }).join('')
+        + `<div style="margin-top:4px;">Si operaste fuera de Gambito y fijaste el BR final a mano, es normal. Se ignoran al registrar y al calcular.</div></details>`;
+    }
+    html += `<p style="color:var(--text-mute); font-size:10.5px; margin-top:6px;">Copia del Sheet de ${edadTxt}.</p>`;
   }
   if(OUTBOX.length>0){
     html += `<p style="color:var(--amber); font-size:11.5px; margin-top:6px;">${OUTBOX.length} operación(es) todavía sin subir: el BR real del Sheet aún no las incluye.</p>`;
@@ -3161,6 +3178,20 @@ function renderChequeo(){
   card.innerHTML = html;
 }
 
+function g3Bloque(e){
+  const t = e.disponible, prov = l2R2(e.disponible + e.hoyProv);
+  if(t >= L2_MIN_TRIPLE){
+    return `<div style="border:1px solid var(--amber); border-radius:6px; padding:8px 10px; margin-top:8px; font-size:12px;">
+      Total G3 <b>${l2Money(t)}</b> ÷ 3 = <b style="color:var(--amber); font-size:15px;">${l2Money(e.monto)}</b> <span style="color:var(--text-mute);">por apuesta (redondeado hacia abajo)</span>
+      ${e.hoyProv>0 ? `<div style="color:var(--text-mute); font-size:11px; margin-top:3px;">Con el excedente provisional de hoy: ${l2Money(prov)} ÷ 3 = ${l2Money(l2R2(prov/3))}</div>`:''}
+    </div>`;
+  }
+  if(prov >= L2_MIN_TRIPLE){
+    return `<div style="border:1px dashed var(--text-mute); border-radius:6px; padding:8px 10px; margin-top:8px; font-size:11.5px; color:var(--text-dim);">
+      Con el excedente provisional de hoy el total sería ${l2Money(prov)} ÷ 3 = <b>${l2Money(l2R2(prov/3))}</b> (se confirma al cerrar el día).</div>`;
+  }
+  return `<p style="color:var(--text-mute); font-size:11px; margin-top:6px;">El total ÷ 3 aparece al llegar a ${l2Money(L2_MIN_TRIPLE)}.</p>`;
+}
 function renderLinea2(){
   const cont = document.getElementById('l2Resumen');
   if(!cont) return;
@@ -3168,23 +3199,24 @@ function renderLinea2(){
   const pendN = Object.keys(l2Pend).length;
   if(l2ScriptViejo){ cont.innerHTML = rojo('El Apps Script desplegado es una versión anterior. Pega el nuevo código y vuelve a implementar (Gestionar implementaciones → ✏️ → Nueva versión).'); return; }
   if(!bitacoraTabla){ cont.innerHTML = `<p style="color:var(--text-mute); font-size:11.5px;">Todavía no hay copia de la Bitácora en este dispositivo. Se descarga al sincronizar con señal.</p>`; return; }
-  if(bitacoraTabla.l2Listo===false){ cont.innerHTML = rojo('Faltan las columnas de Línea 2 en la pestaña Bitacora del Sheet (J a N: Excedente L2, Saldo L2 cierre, Resultado L2 dia, Saldo L2 vigente, Chequeo). Agrégalas como indica el README.'); return; }
+  if(bitacoraTabla.l2Listo===false){ cont.innerHTML = rojo('Faltan las columnas de G3 (antes Línea 2) en la pestaña Bitacora del Sheet (J a N: Excedente L2, Saldo L2 cierre, Resultado L2 dia, Saldo L2 vigente, Chequeo). Agrégalas como indica el README.'); return; }
 
   const e = l2Estado();
   const siguiente = e.disponible<=0
-    ? 'Sin saldo disponible: la Línea 2 se reactiva con el próximo excedente.'
+    ? 'Sin saldo disponible: G3 se reactiva con el próximo excedente.'
     : (e.apuestas===3
         ? `<b style="color:var(--amber);">3 apuestas all-in de ${l2Money(e.monto)}</b>`
         : `<b style="color:var(--amber);">1 apuesta all-in de ${l2Money(e.monto)}</b> <span style="color:var(--text-mute);">(a partir de ${l2Money(L2_MIN_TRIPLE)} se divide en 3)</span>`)
       + (e.sobrante>0 ? ` <span style="color:var(--text-mute);">· sobran ${l2Money(e.sobrante)} por redondeo</span>` : '');
   cont.innerHTML = `
     <p style="font-size:12px; line-height:1.7;">
-      Saldo L2 vigente: <b>${l2Money(e.vigente)}</b> <span style="color:var(--text-mute);">${e.ultimoCierre?'(cierre del '+e.ultimoCierre+')':'(sin cierres aún)'}</span><br>
+      Saldo G3 vigente: <b>${l2Money(e.vigente)}</b> <span style="color:var(--text-mute);">${e.ultimoCierre?'(cierre del '+e.ultimoCierre+')':'(sin cierres aún)'}</span><br>
       Excedente de días cerrados por pasar: <b>${l2Money(e.firme)}</b><br>
       Excedente de hoy (provisional, aún no cuenta): <b style="color:var(--text-dim);">${l2Money(e.hoyProv)}</b><br>
-      Disponible para la Línea 2: <b>${l2Money(e.disponible)}</b><br>
+      Disponible para G3: <b>${l2Money(e.disponible)}</b><br>
       Siguiente tanda: ${siguiente}
     </p>
+    ${g3Bloque(e)}
     ${pendN>0?`<p style="color:var(--amber); font-size:11.5px;">${pendN} cierre(s) guardado(s) en este dispositivo, pendiente(s) de subir al Sheet.${l2UltimoError?' Último error: '+l2Esc(l2UltimoError):''}</p>`:''}`;
 
   // Selector de día a cerrar (se conserva la selección actual)
@@ -3205,7 +3237,7 @@ function renderLinea2(){
     if(k!==null) prev = k;
     return {f, k, j, res};
   }).slice(-10).reverse();
-  document.getElementById('l2Historial').innerHTML = `<table style="font-size:11.5px;"><thead><tr><th>Día</th><th>Fecha</th><th>Excedente</th><th>Cierre L2</th><th>Resultado all-in</th></tr></thead><tbody>${
+  document.getElementById('l2Historial').innerHTML = `<table style="font-size:11.5px;"><thead><tr><th>Día</th><th>Fecha</th><th>Excedente</th><th>Cierre G3</th><th>Resultado all-in</th></tr></thead><tbody>${
     filasTabla.map(({f,k,j,res})=>`<tr><td>${f['Dia']}</td><td>${f.fecha}</td><td>${j===null?'—':l2Money(j)}</td><td>${k===null?'—':l2Money(k)+(l2Pend[f.fecha]!==undefined?' ⏳':'')}</td><td style="color:${res===null?'inherit':(res>=0?'var(--green)':'var(--red)')};">${res===null?'—':(res>=0?'+':'')+l2Money(res).replace('$-','-$')}</td></tr>`).join('')
   }</tbody></table>`;
 }
@@ -3233,16 +3265,16 @@ document.getElementById('btnGuardarL2').addEventListener('click', async ()=>{
   if(!fecha){ mostrar(false, 'No hay un día activado en Bitácora todavía.'); return; }
   const raw = document.getElementById('l2Total').value.trim().replace(',', '.');
   const v = Number(raw);
-  if(raw==='' || !isFinite(v) || v<0){ mostrar(false, 'Escribe el total de la Línea 2 como número mayor o igual a 0 (ej. 3.40).'); return; }
+  if(raw==='' || !isFinite(v) || v<0){ mostrar(false, 'Escribe el total de G3 como número mayor o igual a 0 (ej. 3.40).'); return; }
   const valor = l2R2(v);
   const base = l2BaseParaFecha(fecha);
   if(valor > l2R2(base.sinResultado*50) && base.sinResultado>0 && !confirm(`Anotaste ${l2Money(valor)}, más de 50 veces lo esperado en tablas (${l2Money(base.sinResultado)}). ¿Es correcto?`)) return;
   l2Pend[fecha] = valor; guardarL2Pend();
   document.getElementById('l2Total').value = '';
   renderLinea2Todo();
-  mostrar(true, `Guardado en este dispositivo: Línea 2 de ${fecha} = ${l2Money(valor)}.`);
+  mostrar(true, `Guardado en este dispositivo: G3 de ${fecha} = ${l2Money(valor)}.`);
   await flushL2();
-  if(Object.keys(l2Pend).length===0){ await refreshBitacoraTabla(); mostrar(true, `Guardado y subido al Sheet: Línea 2 de ${fecha} = ${l2Money(valor)}.`); }
+  if(Object.keys(l2Pend).length===0){ await refreshBitacoraTabla(); mostrar(true, `Guardado y subido al Sheet: G3 de ${fecha} = ${l2Money(valor)}.`); }
   else if(!navigator.onLine || !ENDPOINT){ mostrar(true, `Guardado en este dispositivo (${l2Money(valor)}). Subirá solo cuando haya señal.`); }
   else { mostrar(false, 'No se pudo subir al Sheet: '+(l2UltimoError||'sin detalle')+'. Queda guardado aquí y se reintenta solo.'); }
   renderLinea2Todo();
