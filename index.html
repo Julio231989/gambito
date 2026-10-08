@@ -620,6 +620,14 @@ hoy, sin retroceso, conquistaré la contienda.</p>
         <p id="proyeccionInfo"></p>
       </div>
     </div>
+    <div class="rule-card limits" id="cardCuadre" style="margin-top:12px;">
+      <h3>Cuadre del día — Gambito + G3</h3>
+      <div id="cuadreOut" style="font-size:12px; line-height:1.7;"></div>
+      <div class="row2" style="margin-top:8px;">
+        <div><label>Saldo que ves en la casa ($) — opcional</label><input type="text" inputmode="decimal" id="cuadreCasa" placeholder="ej. 38.40"></div>
+        <div id="cuadreDif" style="align-self:end; font-size:12px; padding-bottom:8px;"></div>
+      </div>
+    </div>
     <p style="color:var(--text-mute); font-size:11px; margin-top:10px;">La proyección de 31 días NO es un número fijo: cada día se recalcula desde tu bankroll real (no el planificado). Si un día cierras arriba del plan, la meta de fin de mes sube sola; si cierras abajo, baja. La meta diaria (referencia) se edita en <b>Config</b>. Este panel es informativo — no bloquea entradas, solo te muestra el avance.</p>
 
     <div class="rule-card discard" id="cardChequeo" style="margin-top:16px;">
@@ -2702,7 +2710,8 @@ function renderMetas(){
   const fuente = tieneBitacoraHoy
     ? `<span style="color:var(--green);">● leído de Bitácora, día ${bitacoraHoyCache.dia}</span>`
     : `<span style="color:var(--amber);">● sin fila de Bitácora para hoy (${hoy}) — usando respaldo de Config</span>`;
-  document.getElementById('bankrollInfo').innerHTML = `${fuente}<br>Bankroll al inicio de hoy: <b>$${bankrollInicio.toFixed(2)}</b><br>P/L de hoy (registros de este dispositivo): <b style="color:${plHoy>=0?'var(--green)':'var(--red)'}">$${plHoy.toFixed(2)}</b><br>BR final planificado: <b>$${metaDia.toFixed(2)}</b><br>BR final real: <b>$${bankrollActual.toFixed(2)}</b>`;
+  document.getElementById('bankrollInfo').innerHTML = `${fuente}<br>Bankroll al inicio de hoy: <b>$${bankrollInicio.toFixed(2)}</b><br>P/L de hoy (registros de este dispositivo): <b style="color:${plHoy>=0?'var(--green)':'var(--red)'}">$${plHoy.toFixed(2)}</b><br>BR final planificado: <b>$${metaDia.toFixed(2)}</b><br>BR final real: <b>$${bankrollActual.toFixed(2)}</b><br>Stake de hoy (BR inicial ÷ 8): <b style="color:var(--amber);">$${(bankrollInicio/8).toFixed(2)}</b>`;
+  try{ renderCuadre(); }catch(e){ console.error('Cuadre', e); }
 
   // Proyección adaptativa: parte del bankroll REAL de hoy (no del plan original) y compone
   // la misma tasa diaria hasta completar el día 31. Si hoy cerraste arriba del plan, la meta
@@ -3248,7 +3257,48 @@ function actualizarBaseL2(){
   const b = l2BaseParaFecha(sel.value);
   out.textContent = `Si tus all-in de ese día terminaron en tablas, el total sería ${l2Money(b.sinResultado)} (saldo anterior ${l2Money(b.prev)} + excedente ${l2Money(b.exc)}).`;
 }
+const CASA_KEY = 'gambito_casa_v1';
+function cuadreCalc(){
+  const hoy = getHoy();
+  const tieneHoy = bitacoraHoyCache && bitacoraHoyCache.fecha===hoy;
+  const bankrollInicio = bankrollInicioHoy();
+  const plHoy = RECORDS.filter(r=>r.estado==='Cerrado' && r.fecha===hoy).reduce((s,r)=>s+(+r.pl||0),0);
+  const D = l2R2(tieneHoy ? (+bitacoraHoyCache.real) : (bankrollInicio + plHoy));
+  const fila = l2Filas().find(f=>f.fecha===hoy);
+  const exc = l2R2(fila ? (l2Num(fila['Excedente L2'])||0) : 0);
+  const cierre = fila ? l2Num(fila['Saldo L2 cierre']) : null;
+  const est = l2Estado();
+  const g3 = cierre!==null ? cierre : l2R2(est.disponible + exc); // sin cierre: saldo + excedentes + el de hoy, sin resultado all-in
+  const gambito = l2R2(D - exc);
+  return {D, exc, cierre, g3, gambito, total:l2R2(gambito+g3), tieneHoy, stake:l2R2(bankrollInicio/8), bankrollInicio};
+}
+function renderCuadre(){
+  const out = document.getElementById('cuadreOut'); if(!out) return;
+  const c = cuadreCalc();
+  out.innerHTML = `Stake de Gambito hoy (${l2Money(c.bankrollInicio)} ÷ 8): <b style="color:var(--amber);">${l2Money(c.stake)}</b><br>
+    Gambito — BR final real: <b>${l2Money(c.D)}</b>${c.tieneHoy?'':' <span style="color:var(--amber);">(estimado: hoy no está activado en Bitácora)</span>'}<br>
+    ${c.exc>0?`− excedente de hoy que pasa a G3: <b>${l2Money(c.exc)}</b><br>= Gambito que se queda: <b>${l2Money(c.gambito)}</b><br>`:''}
+    G3 — ${c.cierre!==null?'cierre de hoy':'total sin resultado de all-in (aún sin cierre)'}: <b>${l2Money(c.g3)}</b><br>
+    <span style="font-size:13px;">Total esperado en la casa: <b style="color:var(--teal);">${l2Money(c.total)}</b></span>`;
+  actualizarCuadreDif();
+}
+function actualizarCuadreDif(){
+  const inp = document.getElementById('cuadreCasa'), out = document.getElementById('cuadreDif'); if(!inp||!out) return;
+  const raw = inp.value.trim().replace(',', '.');
+  if(raw===''){ out.textContent=''; return; }
+  const v = Number(raw); if(!isFinite(v)){ out.textContent=''; return; }
+  const dif = l2R2(v - cuadreCalc().total);
+  out.innerHTML = Math.abs(dif)<=0.01
+    ? '<b style="color:var(--green);">✓ Coincide</b>'
+    : `<b style="color:var(--amber);">Difiere ${dif>0?'+':'−'}${l2Money(Math.abs(dif))}</b>`;
+}
+(function(){
+  const inp = document.getElementById('cuadreCasa'); if(!inp) return;
+  try{ const m = JSON.parse(localStorage.getItem(CASA_KEY)||'{}'); if(m.fecha===getHoy()) inp.value = m.v; }catch(e){}
+  inp.addEventListener('input', ()=>{ try{ localStorage.setItem(CASA_KEY, JSON.stringify({fecha:getHoy(), v:inp.value})); }catch(e){} actualizarCuadreDif(); });
+})();
 function renderLinea2Todo(){
+  try{ renderCuadre(); }catch(e){ console.error('Cuadre', e); }
   try{ renderLinea2(); }catch(e){ console.error('L2', e); }
   try{ renderChequeo(); }catch(e){ console.error('Chequeo', e); }
 }
