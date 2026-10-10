@@ -82,6 +82,7 @@
   .checkrow label{margin:0; text-transform:none; font-size:12px; color:var(--text-dim); letter-spacing:0; font-weight:400;}
   fieldset{border:1px solid var(--line); border-radius:8px; padding:14px 16px 18px; margin-top:12px;}
   legend{padding:0 8px; font-size:11px; color:var(--teal); text-transform:uppercase; letter-spacing:.06em; font-weight:600;}
+  textarea.notas-largas{min-height:150px; resize:vertical; line-height:1.6; font-size:13px; overflow-y:hidden;}
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:0 14px;}
   .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:0 14px;}
   .row4{display:grid; grid-template-columns:repeat(4,1fr); gap:0 12px;}
@@ -549,10 +550,10 @@ hoy, sin retroceso, conquistaré la contienda.</p>
         <legend style="color:#a78bfa;">Confirmación con IA (alineación y motivación)</legend>
         <p style="color:var(--text-mute); font-size:11px; margin-bottom:10px;">No pesan en el checklist ni en ningún cálculo — son apoyo a tu propio criterio antes de decidir.</p>
         <div id="ghQualPromptsBox"></div>
-        <div class="row2">
-          <div><label>Notas alineación (Gemini/Claude)</label><textarea id="f_notas_alineacion" rows="3"></textarea></div>
-          <div><label>Notas motivación contextual</label><textarea id="f_notas_motivacion" rows="3"></textarea></div>
-        </div>
+        <label>Notas alineación (Gemini/Claude)</label>
+        <textarea id="f_notas_alineacion" rows="6" class="notas-largas"></textarea>
+        <label>Notas motivación contextual</label>
+        <textarea id="f_notas_motivacion" rows="6" class="notas-largas"></textarea>
         <div class="checkrow" style="margin-top:14px;"><input type="checkbox" id="f_alineacion_ok"><label for="f_alineacion_ok">Alineación confirmada: titulares habituales en cancha, sin bajas clave que reduzcan el poder ofensivo calculado (no es amistoso con suplentes)</label></div>
       </fieldset>
 
@@ -611,11 +612,25 @@ hoy, sin retroceso, conquistaré la contienda.</p>
       <div class="track"><div class="fill" id="metaDiaFill"></div></div>
     </div>
 
+    <div class="rule-card" id="cardMetaUnif" style="margin-top:6px; border-left-color:var(--amber);">
+      <h3 style="color:var(--amber);">Meta unificada de hoy — Gambito + G3</h3>
+      <div id="metaUnifInfo" style="font-size:12px; line-height:1.75;"></div>
+    </div>
+
     <!-- 1 · HOY: todo el dinero del día junto -->
     <div class="grid" style="margin-top:6px;">
       <div class="rule-card">
         <h3>Gambito · hoy</h3>
         <p id="bankrollInfo"></p>
+        <div style="margin-top:10px; border-top:1px solid var(--border, #2a323b); padding-top:10px;">
+          <label for="brFijarValor" style="font-size:11px; color:var(--text-mute);">Fijar el cierre de hoy a mano — BR final real ($)</label>
+          <div style="display:flex; gap:8px; margin-top:4px;">
+            <input type="text" inputmode="decimal" id="brFijarValor" placeholder="ej. 13.72" style="flex:1; min-width:0;">
+            <button type="button" class="btn small" id="btnBrFijar">Fijar</button>
+          </div>
+          <p id="brFijarMsg" style="display:none; font-size:11.5px; margin-top:6px;"></p>
+          <p style="font-size:10.5px; color:var(--text-mute); margin-top:6px;">Escribe en el Sheet: desde ahí esa celda deja de ser fórmula por el resto del día. Úsalo al terminar de operar; necesita conexión.</p>
+        </div>
       </div>
       <div class="rule-card limits">
         <h3>G3 · hoy</h3>
@@ -740,20 +755,20 @@ hoy, sin retroceso, conquistaré la contienda.</p>
         <legend style="color:#a78bfa;">3 · Análisis cualitativo complementario</legend>
         <p style="color:var(--text-mute); font-size:11px; margin-bottom:10px;">Ninguno de estos campos pesa en λ, edge, EV ni Kelly — son observación pura para tu propio criterio. Genera el prompt, cópialo, pégalo en Gemini o Claude con búsqueda web activada, y trae aquí lo que te devuelva. (El prompt de Sentimiento lee publicaciones de X: eso solo lo hace bien Grok; los otros cuatro funcionan en Gemini o Claude.)</p>
         <div id="qualPromptsBox"></div>
-        <div class="row2">
-          <div><label>Notas alineación — Local</label><textarea id="sc_notas_alin_l" rows="3"></textarea></div>
-          <div><label>Notas alineación — Visitante</label><textarea id="sc_notas_alin_v" rows="3"></textarea></div>
-        </div>
-        <div class="row2">
-          <div><label>Notas sentimiento — Local</label><textarea id="sc_notas_sent_l" rows="3"></textarea></div>
-          <div><label>Notas sentimiento — Visitante</label><textarea id="sc_notas_sent_v" rows="3"></textarea></div>
-        </div>
+        <label>Notas alineación — Local</label>
+        <textarea id="sc_notas_alin_l" rows="6" class="notas-largas"></textarea>
+        <label>Notas alineación — Visitante</label>
+        <textarea id="sc_notas_alin_v" rows="6" class="notas-largas"></textarea>
+        <label>Notas sentimiento — Local</label>
+        <textarea id="sc_notas_sent_l" rows="6" class="notas-largas"></textarea>
+        <label>Notas sentimiento — Visitante</label>
+        <textarea id="sc_notas_sent_v" rows="6" class="notas-largas"></textarea>
         <label>Notas H2H (enfrentamientos directos)</label>
-        <textarea id="sc_notas_h2h" rows="3"></textarea>
+        <textarea id="sc_notas_h2h" rows="6" class="notas-largas"></textarea>
         <label>Notas motivación contextual</label>
-        <textarea id="sc_notas_motivacion" rows="3"></textarea>
+        <textarea id="sc_notas_motivacion" rows="6" class="notas-largas"></textarea>
         <label>Notas clima / estado de cancha</label>
-        <textarea id="sc_notas_clima" rows="3"></textarea>
+        <textarea id="sc_notas_clima" rows="6" class="notas-largas"></textarea>
       </fieldset>
 
       <fieldset>
@@ -2711,6 +2726,43 @@ document.getElementById('btnFixBitacora').addEventListener('click', async ()=>{
   btn.disabled = false; btn.textContent = 'Corregir en el Sheet';
 });
 
+document.getElementById('btnBrFijar').addEventListener('click', async ()=>{
+  const msg = document.getElementById('brFijarMsg');
+  const mostrar = (ok, t)=>{ msg.style.display='block'; msg.style.color = ok?'var(--green)':'var(--red)'; msg.textContent = t; };
+  const raw = document.getElementById('brFijarValor').value.trim().replace(',', '.');
+  const v = Number(raw);
+  if(raw==='' || !isFinite(v) || v<0){ mostrar(false, 'Escribe el BR final real como número (ej. 13.72).'); return; }
+  const valor = Math.round(v*100)/100;
+  if(!ENDPOINT){ mostrar(false, 'No hay URL del Web App configurada — usa "Servidor / Sheet" primero.'); return; }
+  if(!navigator.onLine){ mostrar(false, 'Sin conexión: fijar el cierre escribe en el Sheet. Inténtalo cuando haya señal.'); return; }
+  if(!bitacoraHoyCache || bitacoraHoyCache.fecha!==getHoy()){ mostrar(false, 'Hoy no está activado en Bitácora: usa "Activar hoy en Bitácora" (en Mantenimiento) primero.'); return; }
+  if(!confirm(`Fijar el BR final real de hoy en $${valor.toFixed(2)}?\n\nEl Sheet dejará de calcular esa celda por el resto del día.`)) return;
+  const btn = document.getElementById('btnBrFijar');
+  btn.disabled = true; btn.textContent = 'Fijando…';
+  try{
+    const res = await apiPost({action:'bitacora_set', fecha:getHoy(), campo:'BR final real', valor});
+    if(res && res.ok){
+      brManualSet(getHoy(), valor);
+      await refreshBitacoraHoy(); await refreshBitacoraTabla();
+      renderMetas(); renderLinea2Todo();
+      document.getElementById('brFijarValor').value = '';
+      mostrar(true, `Cierre de hoy fijado en $${valor.toFixed(2)}.`);
+    } else {
+      mostrar(false, 'No se pudo fijar: '+(res&&res.error?res.error:'error desconocido'));
+    }
+  }catch(e){
+    mostrar(false, 'Fallo de conexión: '+(e.message||e));
+  }
+  btn.disabled = false; btn.textContent = 'Fijar';
+});
+
+/* Notas largas: crecen solas para leerse completas (también tras pegar el JSON) */
+function autoGrowNotas(el){ if(!el || !el.offsetParent) return; el.style.height='auto'; el.style.height = Math.max(150, el.scrollHeight+4)+'px'; }
+function autoGrowTodas(){ document.querySelectorAll('textarea.notas-largas').forEach(autoGrowNotas); }
+document.addEventListener('input', (e)=>{ if(e.target && e.target.classList && e.target.classList.contains('notas-largas')) autoGrowNotas(e.target); });
+document.querySelectorAll('nav.tabs button').forEach(b=>b.addEventListener('click', ()=>setTimeout(autoGrowTodas, 50)));
+window.addEventListener('resize', autoGrowTodas);
+
 const TASA_DIARIA_PLAN = 1 / 8; // stake = bankroll/8 (sin reserva): ganar 1 stake al día = +12.5%/día compuesto
 
 function renderMetas(){
@@ -2732,9 +2784,10 @@ function renderMetas(){
   const fuente = tieneBitacoraHoy
     ? `<span style="color:var(--green);">● leído de Bitácora, día ${bitacoraHoyCache.dia}</span>`
     : `<span style="color:var(--amber);">● sin fila de Bitácora para hoy (${hoy}) — usando respaldo de Config</span>`;
-  document.getElementById('bankrollInfo').innerHTML = `${fuente}<br>Bankroll al inicio de hoy: <b>$${bankrollInicio.toFixed(2)}</b><br>P/L de hoy (registros de este dispositivo): <b style="color:${plHoy>=0?'var(--green)':'var(--red)'}">$${plHoy.toFixed(2)}</b><br>BR final planificado: <b>$${metaDia.toFixed(2)}</b><br>BR final real: <b>$${bankrollActual.toFixed(2)}</b><br>Stake de hoy (BR inicial ÷ 8): <b style="color:var(--amber);">$${(bankrollInicio/8).toFixed(2)}</b>`;
+  document.getElementById('bankrollInfo').innerHTML = `${fuente}<br>Bankroll al inicio de hoy: <b>$${bankrollInicio.toFixed(2)}</b><br>P/L de hoy (registros de este dispositivo): <b style="color:${plHoy>=0?'var(--green)':'var(--red)'}">$${plHoy.toFixed(2)}</b><br>BR final planificado: <b>$${metaDia.toFixed(2)}</b><br>BR final real: <b>$${bankrollActual.toFixed(2)}</b>${(brManual()[hoy]!==undefined && Math.abs(brManual()[hoy]-bankrollActual)<0.005)?' <span style="color:var(--amber); font-size:11px;">(fijado a mano)</span>':''}<br>Stake de hoy (BR inicial ÷ 8): <b style="color:var(--amber);">$${(bankrollInicio/8).toFixed(2)}</b>`;
   try{ renderCuadre(); }catch(e){ console.error('Cuadre', e); }
   try{ renderG3Hoy(); }catch(e){ console.error('G3 hoy', e); }
+  try{ renderMetaUnificada(); }catch(e){ console.error('Meta unificada', e); }
 
   // Proyección adaptativa: parte del bankroll REAL de hoy (no del plan original) y compone
   // la misma tasa diaria hasta completar el día 31. Si hoy cerraste arriba del plan, la meta
@@ -3343,7 +3396,33 @@ function renderG3Hoy(){
   }
   proyEl.innerHTML = `Día actual: <b>${c.dia} / 31</b><br>Tasa diaria planificada: <b>${(TASA_G3*100).toFixed(2)}%</b><br>${c.cierre!==null?'Total G3 al cierre de hoy':'Total G3 al inicio de hoy'}: <b>${l2Money(c.base)}</b><br>Proyección al día 31: <b>${l2Money(c.proy)}</b><br><span style="color:var(--text-mute); font-size:11px;">Referencia aritmética (todos los días en meta); los límites de apuesta de la casa cortarían antes. No incluye excedentes futuros de Gambito.</span>`;
 }
+function g3InicioHoy(){ // total de G3 con el que arrancas hoy = cierre de ayer + excedentes firmes (sin contar hoy)
+  const hoy = getHoy();
+  let vig = 0, firme = 0;
+  l2Filas().filter(f=>f.fecha<hoy).forEach(f=>{
+    const k = l2Num(f['Saldo L2 cierre']);
+    if(k!==null){ vig = k; firme = 0; return; }
+    firme += l2Num(f['Excedente L2']) || 0;
+  });
+  return l2R2(vig + firme);
+}
+function renderMetaUnificada(){
+  const el = document.getElementById('metaUnifInfo'); if(!el) return;
+  const hoy = getHoy();
+  const gIni = bankrollInicioHoy(), gMeta = metaDiaObjetivo();
+  const g3Ok = bitacoraTabla && bitacoraTabla.l2Listo!==false;
+  const hIni = g3Ok ? g3InicioHoy() : 0, hMeta = l2R2(hIni*(1+TASA_G3));
+  const ini = l2R2(gIni + hIni), meta = l2R2(gMeta + hMeta);
+  const fila = (n,a,b)=>`<tr><td style="padding:2px 10px 2px 0; color:var(--text-mute);">${n}</td><td style="padding:2px 10px 2px 0;">${l2Money(a)}</td><td style="padding:2px 0;">${l2Money(b)}</td></tr>`;
+  el.innerHTML = `<table style="border-collapse:collapse; font-size:12px;"><thead><tr style="color:var(--text-mute); font-size:10.5px; text-transform:uppercase;"><th style="text-align:left; padding-right:10px; font-weight:500;"></th><th style="text-align:left; padding-right:10px; font-weight:500;">Arranque (cierre de ayer)</th><th style="text-align:left; font-weight:500;">Meta de hoy</th></tr></thead><tbody>
+    ${fila('Gambito', gIni, gMeta)}
+    ${g3Ok ? fila('G3', hIni, hMeta) : '<tr><td colspan="3" style="color:var(--text-mute);">G3: sin copia de la Bitácora con columnas de G3 en este dispositivo.</td></tr>'}
+    <tr style="border-top:1px solid var(--line);"><td style="padding:4px 10px 0 0;"><b>Total</b></td><td style="padding:4px 10px 0 0;"><b>${l2Money(ini)}</b></td><td style="padding:4px 0 0;"><b style="color:var(--amber); font-size:14px;">${l2Money(meta)}</b></td></tr>
+  </tbody></table>
+  <div style="color:var(--text-mute); font-size:11px; margin-top:6px;">Ganancia a lograr hoy entre las dos líneas: <b style="color:var(--text);">${l2Money(l2R2(meta-ini))}</b> (Gambito ${l2Money(l2R2(gMeta-gIni))} + G3 ${l2Money(l2R2(hMeta-hIni))}).</div>`;
+}
 function renderLinea2Todo(){
+  try{ renderMetaUnificada(); }catch(e){ console.error('Meta unificada', e); }
   try{ renderG3Hoy(); }catch(e){ console.error('G3 hoy', e); }
   try{ renderCuadre(); }catch(e){ console.error('Cuadre', e); }
   try{ renderLinea2(); }catch(e){ console.error('L2', e); }

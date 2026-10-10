@@ -7,7 +7,7 @@
 //  - Llamadas al Apps Script: SIEMPRE a la red (nunca desde caché).
 //  - Al cambiar CACHE_NAME se descarta la caché vieja y se avisa a la app para que ofrezca recargar.
 
-const VERSION = 'v8';                       // súbelo cada vez que publiques cambios en index.html
+const VERSION = 'v10';                       // súbelo cada vez que publiques cambios en index.html
 const CACHE_NAME = 'gambito-shell-' + VERSION;
 const CACHE_EXT  = 'gambito-ext-v1';        // librerías y fuentes de terceros (cambian muy poco)
 
