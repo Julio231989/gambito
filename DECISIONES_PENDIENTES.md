@@ -7,11 +7,11 @@ El 12-oct el usuario respondió las decisiones de la revisión del 11-oct. Lo re
 - Parches H1, H2, H3, H5, H8 y redondeo de G3: **aplicados**.
 - Reinicio con Sheet nuevo, semilla manual del Día 1, Objetivos desde el Sheet, recomendación «Más de 0.75»: **hechos**.
 
-## Abierto 1 · Riesgo del stake ÷ 8 en Scout Core (recordatorio, no bloquea nada)
+## Decidido · Stake ÷ 8 en Scout Core se mantiene (el riesgo queda anotado)
 Con la tabla de la revisión anterior (`g` = crecimiento esperado del logaritmo del bankroll por apuesta, cuota 2.00): si la probabilidad real es 3 puntos menor que la que estima el modelo (p real 52 % frente a 55 %), 12,5 % por apuesta da **−0,29 %** por apuesta, mientras que 3 % da +0,08 %. El Kelly completo para esos edges es 6,7–10 %. Los datos apuntan a que ÷ 8 supera el Kelly completo en prematch con edges de 4–10 %, así que el resultado depende de que el modelo esté bien calibrado, y eso solo lo dirá el CLV de las primeras 150 apuestas. La app deja visible la columna «Kelly ref.» al lado del stake para que veas la distancia en cada análisis. Si más adelante quieres volver a Kelly con tope, es cambiar una línea (`stakeKelly` en `scCalcular`).
 
-## Abierto 2 · ¿El P/L de Scout Core debe entrar en la Bitácora?
-La fórmula de «BR final real» suma solo `Registros!AP` (Goal Hunter). Con stake ÷ 8 en Scout Core, el bankroll de mañana **no incluye** lo que ganes o pierdas en Scout Core, y el stake de ÷ 8 se calcula sobre un bankroll que no lo refleja. Opciones: (a) dejarlo así y usar G3/saldo de la casa como cuadre; (b) sumar `Scout_Core!AU` (P/L) a la fórmula de «BR final real» en el Sheet (cambio en fórmulas del Sheet: hay que decidirlo antes de empezar para no mezclar días). Mi lectura: si Scout Core apuesta dinero real con el mismo bankroll, (b) es lo coherente; no lo apliqué porque cambia la regla de bankroll.
+## Cerrado · El P/L de Scout Core entra en la Bitácora (decisión del usuario, 13-oct-2026)
+«BR final real» ahora es `=A + SUMIFS(Registros!AP, Registros!C, fecha) + SUMIFS(Scout_Core!AW, Scout_Core!C, fecha)`. (En una versión anterior de este documento figuraba `Scout_Core!AU` por error: AU es `estrategia`; el P/L es `AW`.) Cambios: fórmulas de la Bitácora en `gambito_registro_v2.9.xlsx`, `getBitacoraAll` y `fijarSemilla` en el Apps Script, `plDelDia()` en la app. Las pérdidas del límite diario siguen contando solo Goal Hunter. El stake ÷ 8 se mantiene (decisión del usuario).
 
 ## Abierto 3 · Otras decisiones pendientes
 - **H7 (edge contra la probabilidad con margen):** sin cambio; existe la sección informativa «Sin el margen de la casa».

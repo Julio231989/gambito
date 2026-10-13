@@ -50,3 +50,5 @@ Requiere Node 18+ (en tu PC hay v24). Sin dependencias. Código de salida 0 = to
 - La plantilla xlsx no estaba en mi entorno: la traje desde la carpeta del usuario (staging), añadí la hoja Objetivos y la guardé como `gambito_registro_v2.8.xlsx` sin tocar el original.
 - Suite: 96 pruebas OK, 0 fallos, 6 «conocido». Prueba de humo en Chromium sin errores de JavaScript (solo avisos de red y Service Worker por abrir con `file://`).
 - v2.8.1 (compartir desde Android) y v2.9.0 (Flashscore, campos opcionales, selector xG/goles) aplicados el mismo día. Suite: 104 pruebas OK, 0 fallos, 6 «conocido». Prueba en Chromium real sin errores de JavaScript.
+
+- 13-oct (v2.9.1): decisión del usuario → el P/L de Scout Core entra en la Bitácora. Fórmula D y chequeo N (texto) en el xlsx v2.9 verificados con LibreOffice (10 + 1.50 − 0.50 = 11.00); Q2 cuenta también Scout_Core con fecha fuera de Bitácora. Corregida la columna citada antes (AW, no AU). Suite: 110 OK.

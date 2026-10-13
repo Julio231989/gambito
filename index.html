@@ -1021,6 +1021,11 @@ function bankrollInicioHoy(){
   }
   return CONFIG.bankrollinicio; // respaldo si aún no hay fila de Bitácora para hoy
 }
+/* P/L cerrado de un día = Goal Hunter + Scout Core (ambos suman al BR final real de la Bitácora). */
+function plDelDia(fecha){
+  const suma = (arr)=>arr.filter(r=>r.estado==='Cerrado' && r.fecha===fecha).reduce((s,r)=>s+(+r.pl||0),0);
+  return suma(RECORDS) + suma(SCOUT_RECORDS);
+}
 function stakeSugeridoHoy(){
   if(bitacoraHoyCache && bitacoraHoyCache.fecha===getHoy() && bitacoraHoyCache.stake!=='' && bitacoraHoyCache.stake!=null){
     return +bitacoraHoyCache.stake;
@@ -1373,7 +1378,7 @@ function computeDaily(){
   const hoy = getHoy();
   const hoyRecs = RECORDS.filter(r=>r.fecha===hoy);
   const cerradosHoy = hoyRecs.filter(r=>r.estado==='Cerrado');
-  const plHoy = cerradosHoy.reduce((s,r)=>s+(+r.pl||0),0);
+  const plHoy = plDelDia(hoy); // incluye Scout Core
   const perdidasHoy = cerradosHoy.filter(r=>r.resultado==='Perdida').length;
   const bankrollInicio = bankrollInicioHoy();
   const bankrollActual = bankrollInicio + plHoy;
@@ -3261,7 +3266,7 @@ const TASA_DIARIA_PLAN = 1 / 8; // stake = bankroll/8 (sin reserva): ganar 1 sta
 function renderMetas(){
   const hoy = getHoy();
   const cerrados = RECORDS.filter(r=>r.estado==='Cerrado');
-  const plHoy = cerrados.filter(r=>r.fecha===hoy).reduce((s,r)=>s+(+r.pl||0),0);
+  const plHoy = plDelDia(hoy);
   const bankrollInicio = bankrollInicioHoy();
   const tieneBitacoraHoy = bitacoraHoyCache && bitacoraHoyCache.fecha===hoy;
   // Bankroll actual: si Bitácora ya tiene el BR final real de hoy, se usa ese (fuente de verdad);
@@ -3277,7 +3282,7 @@ function renderMetas(){
   const fuente = tieneBitacoraHoy
     ? `<span style="color:var(--green);">● leído de Bitácora, día ${bitacoraHoyCache.dia}</span>`
     : `<span style="color:var(--amber);">● sin fila de Bitácora para hoy (${hoy}) — usando respaldo de Config</span>`;
-  document.getElementById('bankrollInfo').innerHTML = `${fuente}<br>Bankroll al inicio de hoy: <b>$${bankrollInicio.toFixed(2)}</b><br>P/L de hoy (registros de este dispositivo): <b style="color:${plHoy>=0?'var(--green)':'var(--red)'}">$${plHoy.toFixed(2)}</b><br>BR final planificado: <b>$${metaDia.toFixed(2)}</b><br>BR final real: <b>$${bankrollActual.toFixed(2)}</b>${(brManual()[hoy]!==undefined && Math.abs(brManual()[hoy]-bankrollActual)<0.005)?' <span style="color:var(--amber); font-size:11px;">(fijado a mano)</span>':''}<br>Stake de hoy (BR inicial ÷ 8): <b style="color:var(--amber);">$${(bankrollInicio/8).toFixed(2)}</b>`;
+  document.getElementById('bankrollInfo').innerHTML = `${fuente}<br>Bankroll al inicio de hoy: <b>$${bankrollInicio.toFixed(2)}</b><br>P/L de hoy (Goal Hunter + Scout Core, este dispositivo): <b style="color:${plHoy>=0?'var(--green)':'var(--red)'}">$${plHoy.toFixed(2)}</b><br>BR final planificado: <b>$${metaDia.toFixed(2)}</b><br>BR final real: <b>$${bankrollActual.toFixed(2)}</b>${(brManual()[hoy]!==undefined && Math.abs(brManual()[hoy]-bankrollActual)<0.005)?' <span style="color:var(--amber); font-size:11px;">(fijado a mano)</span>':''}<br>Stake de hoy (BR inicial ÷ 8): <b style="color:var(--amber);">$${(bankrollInicio/8).toFixed(2)}</b>`;
   try{ renderSemilla(); }catch(e){ console.error('Semilla', e); }
   try{ renderCuadre(); }catch(e){ console.error('Cuadre', e); }
   try{ renderG3Hoy(); }catch(e){ console.error('G3 hoy', e); }
@@ -3703,7 +3708,7 @@ const L2_MAPA_MSG = [
   ['Fecha con formato','fecha','H'], ['Fecha repetida','fecha','H'], ['La fecha no es posterior','fecha','H'],
   ['Bank roll inicial','Bank roll inicial','A'], ['Stake distinto','stake','B'], ['Residuo','Reserva','E'],
   ['Saldo L2 no numerico','Saldo L2 cierre','K'], ['Falta cerrar','Saldo L2 cierre','K'],
-  ['P/L guardado como texto','pl (Registros)','AP']
+  ['P/L guardado como texto en Registros','pl (Registros)','AP'], ['P/L guardado como texto en Scout_Core','pl (Scout_Core)','AW']
 ];
 const BR_MANUAL_KEY = 'gambito_br_manual_v1';
 function brManual(){ try{ return JSON.parse(localStorage.getItem(BR_MANUAL_KEY)||'{}')||{}; }catch(e){ return {}; } }
@@ -3717,7 +3722,7 @@ function verificarBitacora(){
     if(!texto) return;
     texto.split(/(?<=\.)\s+/).filter(Boolean).forEach(frase=>{
       const m = L2_MAPA_MSG.find(x=>frase.indexOf(x[0])!==-1);
-      errores.push({dia:f['Dia'], fecha:f.fecha, fila:f.fila, columna:m?m[1]:'fila', letra:m?m[2]:'A', mensaje:frase.replace(/Saldo L2/g,'Saldo G3'), enBitacora:!(m && m[2]==='AP'),
+      errores.push({dia:f['Dia'], fecha:f.fecha, fila:f.fila, columna:m?m[1]:'fila', letra:m?m[2]:'A', mensaje:frase.replace(/Saldo L2/g,'Saldo G3'), enBitacora:!(m && (m[2]==='AP'||m[2]==='AW')),
         nivel:(m && m[1]==='fecha') ? 'error' : 'aviso'}); // solo los problemas de FECHA bloquean; lo demás (P/L, residuo, cierres) es aviso
     });
   });
@@ -3729,16 +3734,16 @@ function verificarBitacora(){
     if(man!==undefined && Math.abs(man-D) < 0.005) return; // BR final fijado a mano desde la app (operaste fuera de Gambito): no es discrepancia
     if(Math.abs(dif-suma) > 0.01){
       errores.push({dia:f['Dia'], fecha:f.fecha, fila:f.fila, columna:'BR final real', letra:'D', enBitacora:true, nivel:'aviso',
-        mensaje:`BR final real − Bank roll inicial = ${l2Money(dif)}, pero la suma de P/L de ese día en Registros es ${l2Money(suma)}.`});
+        mensaje:`BR final real − Bank roll inicial = ${l2Money(dif)}, pero la suma de P/L de ese día (Registros + Scout_Core) es ${l2Money(suma)}.`});
     }
   });
   (bitacoraTabla.huerfanos||[]).forEach(h=>{
-    errores.push({dia:'—', fecha:h.fecha||'(vacía)', fila:'', columna:'fecha (Registros)', letra:'', enBitacora:false, nivel:'aviso',
-      mensaje:`El registro "${h.partido||h.id}" (P/L ${l2Money(h.pl)}) tiene fecha ${h.fecha||'vacía'} y ese día no existe en Bitácora: no suma al bankroll.`});
+    errores.push({dia:'—', fecha:h.fecha||'(vacía)', fila:'', columna:'fecha ('+(h.origen||'Registros')+')', letra:'', enBitacora:false, nivel:'aviso',
+      mensaje:`El registro "${h.partido||h.id}" de ${h.origen||'Registros'} (P/L ${l2Money(h.pl)}) tiene fecha ${h.fecha||'vacía'} y ese día no existe en Bitácora: no suma al bankroll.`});
   });
   (bitacoraTabla.plTexto||[]).forEach(h=>{
-    errores.push({dia:'—', fecha:h.fecha||'(vacía)', fila:'', columna:'pl (Registros)', letra:'', enBitacora:false, nivel:'aviso',
-      mensaje:`El registro "${h.partido||h.id}" tiene el P/L guardado como texto ("${h.pl}"): no suma al bankroll.`});
+    errores.push({dia:'—', fecha:h.fecha||'(vacía)', fila:'', columna:'pl ('+(h.origen||'Registros')+')', letra:'', enBitacora:false, nivel:'aviso',
+      mensaje:`El registro "${h.partido||h.id}" de ${h.origen||'Registros'} tiene el P/L guardado como texto ("${h.pl}"): no suma al bankroll.`});
   });
   return errores;
 }
@@ -3865,7 +3870,7 @@ function cuadreCalc(){
   const hoy = getHoy();
   const tieneHoy = bitacoraHoyCache && bitacoraHoyCache.fecha===hoy;
   const bankrollInicio = bankrollInicioHoy();
-  const plHoy = RECORDS.filter(r=>r.estado==='Cerrado' && r.fecha===hoy).reduce((s,r)=>s+(+r.pl||0),0);
+  const plHoy = plDelDia(hoy);
   const D = l2R2(tieneHoy ? (+bitacoraHoyCache.real) : (bankrollInicio + plHoy));
   const fila = l2Filas().find(f=>f.fecha===hoy);
   const exc = l2R2(fila ? (l2Num(fila['Excedente L2'])||0) : 0);

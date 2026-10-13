@@ -3,13 +3,13 @@
 Para empezar a registrar el **13-oct-2026 (Día 1)** con un Sheet nuevo. El Sheet actual queda intacto como archivo.
 
 ## 1. Sheet nuevo (≈10 min)
-1. Sube `gambito_registro_v2.8.xlsx` a Google Drive y ábrelo con Hojas de cálculo → **Archivo → Guardar como hoja de cálculo de Google**.
+1. Sube `gambito_registro_v2.9.xlsx` a Google Drive y ábrelo con Hojas de cálculo → **Archivo → Guardar como hoja de cálculo de Google**.
 2. **Archivo → Configuración → Zona horaria: America/Guayaquil.**
 3. Pestañas que debes ver: Instrucciones, Registros, Scout_Core, Perfil_Ligas, **Objetivos** (nueva) y Bitacora. Todas vienen vacías salvo Objetivos (tus 30 ítems de hoy) y Bitacora (A2 = 8 como semilla provisional, G2 = 1, P2 = 1).
 4. Si Google marca error de análisis en alguna fórmula, cambia las comas `,` por punto y coma `;` (depende de la configuración regional).
 
 ## 2. Apps Script
-1. **Extensiones → Apps Script**, borra lo que haya y pega todo `gambito_appsscript.gs` (v2.8.0).
+1. **Extensiones → Apps Script**, borra lo que haya y pega todo `gambito_appsscript.gs` (v2.9.1).
 2. **Implementar → Nueva implementación → Aplicación web**: ejecutar como *yo*; acceso *cualquier persona*. Autoriza los permisos.
 3. Copia la URL que termina en `/exec`.
 
