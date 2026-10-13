@@ -389,6 +389,7 @@ hoy, sin retroceso, conquistaré la contienda.</p>
     <div class="premeditatio"><small>Premeditatio malorum · regla operativa</small><p data-premeditatio></p></div>
     <p style="color:var(--amber); font-size:11px; margin-bottom:10px;">Los campos en <b>ámbar con *</b> son obligatorios para guardar el registro. El resto es opcional.</p>
     <form id="formNuevo">
+      <div id="capturaBoxGh"></div>
       <fieldset>
         <legend>Identificación del partido</legend>
         <div class="row2">
@@ -759,6 +760,7 @@ hoy, sin retroceso, conquistaré la contienda.</p>
         <button type="button" class="btn secondary small" id="btnImportarSC" style="margin-top:8px;">Rellenar formulario desde JSON</button>
       </fieldset>
 
+      <div id="capturaBoxSc"></div>
       <fieldset>
         <legend>Identificación</legend>
         <div class="row2">
@@ -2699,6 +2701,203 @@ function iniciarCompartido(){
   }
 }
 
+/* ============ CAPTURA RÁPIDA: captura de pantalla → IA → JSON corto → formulario ============ */
+const CAPTURA_METRICAS = {
+  xg:[0,10,false], ataques:[0,500,true], ataques_peligrosos:[0,300,true], posesion:[0,100,true],
+  tiros_puerta:[0,60,true], tiros_fuera:[0,80,true], amarillas:[0,15,true], rojas:[0,5,true], paradas:[0,40,true],
+  corners:[0,40,true], penaltis:[0,5,true], sustituciones:[0,6,true], pases_clave:[0,60,true], precision_pases:[0,100,true], centros:[0,80,true]
+};
+function construirPromptCaptura(){
+  const m = Object.keys(CAPTURA_METRICAS).map(k=>`"${k}": null`).join(', ');
+  return `Eres un transcriptor de capturas de pantalla de partidos de fútbol. NO analices, NO predigas, NO recomiendes. Solo copia lo que se VE en la imagen.
+
+La captura normalmente es la pantalla de ESTADÍSTICAS del partido (1xBet, Sofascore o Flashscore): un título con la competición, filas con una métrica en el centro y el valor del equipo local a la izquierda y del visitante a la derecha, y abajo una línea con el marcador, los equipos y el tiempo transcurrido.
+
+Devuélveme ÚNICAMENTE este objeto JSON, sin texto antes ni después y sin markdown:
+
+{
+  "tipo_captura": "vivo",
+  "fuente": "1xBet",
+  "liga": "País - Competición",
+  "local": null,
+  "visitante": null,
+  "minuto": null,
+  "marcador_local": null,
+  "marcador_visitante": null,
+  "metricas": {
+    "local": { ${m} },
+    "visitante": { ${m} }
+  },
+  "cuotas": { "local": null, "empate": null, "visitante": null, "over25": null, "under25": null, "btts_si": null, "btts_no": null, "mas_075": null },
+  "legibilidad": "alta",
+  "dudas": null
+}
+
+Reglas:
+- liga: formato "País - Competición", en español, sin prefijos como "Fútbol." (ejemplo: "Fútbol. Israel. State Cup" → "Israel - State Cup"). En competiciones internacionales usa el organizador en lugar del país (ejemplo: "Fútbol. Liga de Campeones de la UEFA" → "UEFA - Liga de Campeones").
+- local y visitante: tal como aparecen escritos en la línea del marcador ("RC Lens - Sporting CP": el primero es el local, el segundo el visitante). El valor de la izquierda en cada fila es del local; el de la derecha, del visitante. No traduzcas ni abrevies los nombres.
+- minuto: entero del tiempo transcurrido (65 si marca 65:57). marcador_local y marcador_visitante: enteros del marcador, en el mismo orden local-visitante. Si no es en vivo, tipo_captura "prematch" y null en minuto y marcador.
+- metricas: asigna cada fila por su SIGNIFICADO aunque la etiqueta esté en otro idioma, y copia el número tal cual (xG con sus decimales):
+  xg = xG; ataques = Ataques; ataques_peligrosos = Ataques peligrosos; posesion = % de posesión; tiros_puerta = Tiros entre los tres palos / a puerta; tiros_fuera = Tiros fuera de portería; amarillas = Tarjetas amarillas; rojas = Red card / tarjetas rojas; paradas = Paradas; corners = Corner / saques de esquina; penaltis = Penalty; sustituciones = Substitutions; pases_clave = Key Passes; precision_pases = Passing Accuracy %; centros = Crosses.
+- Si una fila no aparece en la captura, deja null. No calcules, no sumes y no completes un valor a partir de otro.
+- cuotas: solo si se ven en la captura (número con punto decimal y todos los decimales exactos: 2.944, no 2.94); en la pantalla de estadísticas normalmente son null. mas_075 = cuota de "Más de (0.75)" del Total asiático.
+- Si algo se lee con duda (borroso, cortado, ambiguo), anótalo en "dudas" y baja "legibilidad" a "media" o "baja".
+- NUNCA inventes un dato que no esté en la imagen.`;
+}
+function claveLigaSuave(s){
+  return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+}
+function limpiarLigaCaptura(s){
+  let t = String(s||'').trim().replace(/^(f[uú]tbol|football|soccer)\s*[.\-:·]\s*/i,'');
+  if(!/ - /.test(t)) t = t.replace(/\.\s+/,' - '); // «Israel. State Cup» → «Israel - State Cup»
+  return t.trim();
+}
+/* Empareja el nombre de la captura con un perfil de liga que ya tengas, para no duplicar «Israel State Cup» e «Israel - State Cup». */
+function resolverLigaConPerfil(liga){
+  const k = claveLigaSuave(liga);
+  if(!k) return {liga:'', perfil:null, coincidencia:'ninguna'};
+  const exacta = PERFIL_LIGAS.find(p=>claveLigaSuave(p.liga)===k);
+  if(exacta) return {liga:exacta.liga, perfil:exacta, coincidencia:'exacta'};
+  const aprox = PERFIL_LIGAS.filter(p=>{ const kp = claveLigaSuave(p.liga); return kp && (kp.includes(k) || k.includes(kp)); });
+  if(aprox.length===1) return {liga:aprox[0].liga, perfil:aprox[0], coincidencia:'aproximada'};
+  return {liga, perfil:null, coincidencia:'ninguna'};
+}
+function numCaptura(v, min, max, entero){
+  if(v===null || v===undefined || v==='') return null;
+  const n = parseFloat(String(v).replace(',','.'));
+  if(!isFinite(n) || n<min || n>max) return NaN;
+  if(entero && Math.floor(n)!==n) return NaN;
+  return n;
+}
+function validarCaptura(data){
+  if(!data || typeof data!=='object' || Array.isArray(data)) throw new Error('El JSON debe ser un objeto.');
+  const avisos = [];
+  const texto = (v)=> (v===null||v===undefined) ? '' : String(v).trim();
+  const local = texto(data.local), visitante = texto(data.visitante);
+  if(!local || !visitante) throw new Error('El JSON no trae el equipo local o el visitante. Repite la captura con el partido completo a la vista.');
+  if(claveLigaSuave(local)===claveLigaSuave(visitante)) throw new Error('Local y visitante salieron iguales: revisa la captura.');
+  const min = numCaptura(data.minuto,0,130,true), ml = numCaptura(data.marcador_local,0,30,true), mv = numCaptura(data.marcador_visitante,0,30,true);
+  [['minuto',min],['marcador_local',ml],['marcador_visitante',mv]].forEach(([k,v])=>{ if(Number.isNaN(v)) avisos.push(`«${k}» no es un número válido y se ignoró.`); });
+  const enVivo = /vivo/i.test(texto(data.tipo_captura)) || (typeof min==='number' && !Number.isNaN(min));
+  const cuotas = {};
+  const c = (data.cuotas && typeof data.cuotas==='object') ? data.cuotas : {};
+  ['local','empate','visitante','over25','under25','btts_si','btts_no','mas_075'].forEach(k=>{
+    const v = numCaptura(c[k],1.01,1000,false);
+    if(Number.isNaN(v)) avisos.push(`La cuota «${k}» (${c[k]}) no es válida y se ignoró.`);
+    else if(v!==null) cuotas[k] = v;
+  });
+  if(texto(data.legibilidad) && !/alta/i.test(texto(data.legibilidad))) avisos.push('La IA reporta legibilidad '+texto(data.legibilidad)+': revisa los números.');
+  if(texto(data.dudas)) avisos.push('Dudas de la IA: '+texto(data.dudas));
+  const metricas = {local:{}, visitante:{}};
+  const mi = (data.metricas && typeof data.metricas==='object') ? data.metricas : {};
+  ['local','visitante'].forEach(lado=>{
+    const fuente = (mi[lado] && typeof mi[lado]==='object') ? mi[lado] : {};
+    Object.entries(CAPTURA_METRICAS).forEach(([k,[mn,mx,ent]])=>{
+      const v = numCaptura(fuente[k],mn,mx,ent);
+      if(Number.isNaN(v)) avisos.push(`La métrica «${k}» del ${lado} (${fuente[k]}) no es válida y se ignoró.`);
+      else if(v!==null) metricas[lado][k] = v;
+    });
+  });
+  const pl = metricas.local.posesion, pv = metricas.visitante.posesion;
+  if(pl!==undefined && pv!==undefined && Math.abs(pl+pv-100)>2) avisos.push(`La posesión suma ${pl+pv} (debería rondar 100): revisa la lectura.`);
+  if(metricas.local.posesion!==undefined && pv===undefined) {}
+  const ligaLimpia = limpiarLigaCaptura(data.liga);
+  const lg = resolverLigaConPerfil(ligaLimpia);
+  if(lg.coincidencia==='aproximada') avisos.push(`Liga igualada con tu perfil existente: «${lg.liga}».`);
+  return { datos:{
+      tipo: enVivo ? 'vivo' : 'prematch', fuente: texto(data.fuente), liga: lg.liga, perfil: lg.perfil, ligaOriginal: ligaLimpia,
+      local, visitante, partido: `${local} vs ${visitante}`, ronda: texto(data.ronda), metricas,
+      minuto: Number.isNaN(min)?null:min, marcador_local: Number.isNaN(ml)?null:ml, marcador_visitante: Number.isNaN(mv)?null:mv, cuotas
+    }, avisos };
+}
+function aplicarCaptura(d, destino){
+  const pares = [];
+  if(destino==='gh'){
+    pares.push(['f_liga', d.liga], ['f_partido', d.partido]);
+    if(d.tipo==='vivo'){
+      if(d.minuto!==null) pares.push(['f_minuto', d.minuto]);
+      if(d.marcador_local!==null) pares.push(['f_score_entrada_l', d.marcador_local]);
+      if(d.marcador_visitante!==null) pares.push(['f_score_entrada_v', d.marcador_visitante]);
+      const mapa = {corners:['f_corners1','f_corners2'], tiros_puerta:['f_tiros1','f_tiros2'], posesion:['f_pos1','f_pos2'], xg:['f_xg1','f_xg2']};
+      Object.entries(mapa).forEach(([k,[idL,idV]])=>{
+        if(d.metricas.local[k]!==undefined) pares.push([idL, d.metricas.local[k]]);
+        if(d.metricas.visitante[k]!==undefined) pares.push([idV, d.metricas.visitante[k]]);
+      });
+    }
+  } else {
+    pares.push(['sc_liga', d.liga], ['sc_partido', d.partido]);
+    if(d.tipo!=='vivo'){
+      const m = {local:'sc_cuota_local', empate:'sc_cuota_empate', visitante:'sc_cuota_visitante', over25:'sc_cuota_over25', under25:'sc_cuota_under25', btts_si:'sc_cuota_btts_si', btts_no:'sc_cuota_btts_no'};
+      Object.entries(m).forEach(([k,id])=>{ if(d.cuotas[k]!==undefined) pares.push([id, d.cuotas[k]]); });
+    }
+  }
+  const validos = pares.filter(([id,v])=>v!=='' && v!==null && document.getElementById(id));
+  const conTexto = validos.filter(([id,v])=>{ const el = document.getElementById(id); return el.value.trim() && el.value.trim()!==String(v); }).map(([id])=>id);
+  if(conTexto.length && !confirm('Estos campos ya tienen datos y se van a reemplazar: '+conTexto.join(', ')+'.\n\n¿Continuar?')) return null;
+  validos.forEach(([id,v])=>{ const el = document.getElementById(id); el.value = String(v); el.dispatchEvent(new Event('input',{bubbles:true})); });
+  if(destino==='sc'){ window.__capOu075 = (d.tipo!=='vivo' && d.cuotas.mas_075) ? d.cuotas.mas_075 : null; }
+  return validos.map(([id])=>id);
+}
+/* Datos de la captura que NO tienen campo en el registro (no se guardan): solo se muestran para que los tengas a la vista. */
+function resumenMetricasCaptura(m){
+  const par = (k, etiqueta)=> (m.local[k]!==undefined && m.visitante[k]!==undefined) ? `${etiqueta} ${m.local[k]}-${m.visitante[k]}` : null;
+  const t = [par('ataques','ataques'), par('ataques_peligrosos','ataques peligrosos'), par('tiros_fuera','tiros fuera'), par('paradas','paradas'), par('pases_clave','pases clave'), par('centros','centros'), par('amarillas','amarillas')].filter(Boolean);
+  return t.length ? 'Solo para ver (no se guarda): '+t.join(' · ')+'.' : '';
+}
+function procesarCaptura(txt, destino){
+  const {datos, avisos} = validarCaptura(extraerJSON(txt));
+  const ids = aplicarCaptura(datos, destino);
+  if(ids===null) return {cancelado:true, datos, avisos, ids:[]};
+  const extra = [];
+  if(destino==='gh' && datos.tipo==='vivo'){
+    const rojas = (datos.metricas.local.rojas||0) + (datos.metricas.visitante.rojas||0);
+    const chk = document.getElementById('f_roja_previa');
+    if(rojas>0 && chk && !chk.checked){ chk.checked = true; extra.push(`Hay ${rojas} tarjeta(s) roja(s): marqué «Ya hubo tarjeta roja».`); }
+    const resumen = resumenMetricasCaptura(datos.metricas);
+    if(resumen) extra.push(resumen);
+  }
+  if(destino==='gh' && datos.tipo==='prematch') extra.push('Es una captura prematch: no hay minuto ni marcador. Para analizar antes del partido usa Scout Core.');
+  if(destino==='sc' && datos.tipo==='vivo') extra.push('Es una captura en vivo: no cargué cuotas en Scout Core (las cuotas en vivo no sirven para el análisis prematch). Esta captura encaja mejor en Nuevo registro.');
+  if(destino==='sc' && datos.cuotas.mas_075 && datos.tipo!=='vivo') extra.push(`Cuota Más de 0.75 (${datos.cuotas.mas_075}) lista: aparece al pulsar Calcular.`);
+  if(!datos.perfil && datos.liga) extra.push('Sin perfil para esta liga todavía: puedes crearlo con el asistente de perfil de liga.');
+  return {cancelado:false, datos, avisos:[...avisos, ...extra], ids};
+}
+function montarCaptura(boxId, destino){
+  const box = document.getElementById(boxId);
+  if(!box) return;
+  const t = destino;
+  box.innerHTML = `<fieldset style="border-color:var(--teal);">
+    <legend style="color:var(--teal);">📸 Captura rápida (opcional)</legend>
+    <p style="color:var(--text-mute); font-size:11px; margin-bottom:8px;">Toma una captura del partido (1xBet, Sofascore o Flashscore) → pásala a la IA con el prompt de captura → copia el JSON que devuelve → pulsa «Pegar JSON». Rellena liga y equipos${destino==='gh'?', minuto, marcador, córners, tiros a puerta, posesión y xG':' y las cuotas visibles'}. Siempre revisa antes de guardar.</p>
+    <div class="row2">
+      <button type="button" class="btn secondary small" id="capCopiar_${t}">Copiar prompt de captura</button>
+      <button type="button" class="btn small" id="capPegar_${t}">Pegar JSON de captura</button>
+    </div>
+    <textarea id="capTxt_${t}" rows="4" placeholder="Si el botón no puede leer el portapapeles, pega aquí el JSON y vuelve a pulsar «Pegar JSON de captura»." style="display:none; width:100%; margin-top:8px; background:#0a121f; border:1px solid var(--line); color:var(--text); border-radius:3px; padding:8px; font-family:'IBM Plex Mono',monospace; font-size:11px;"></textarea>
+    <div id="capMsg_${t}" style="display:none; margin-top:8px; font-size:11.5px; line-height:1.6;"></div>
+  </fieldset>`;
+  const msg = (ok, lineas)=>{ const m = document.getElementById('capMsg_'+t); m.style.display='block'; m.style.color = ok?'var(--green)':'var(--red)'; m.innerHTML = lineas.map(l=>escaparHTML(l)).join('<br>'); };
+  document.getElementById('capCopiar_'+t).addEventListener('click', async ()=>{
+    const p = construirPromptCaptura();
+    try{ await navigator.clipboard.writeText(p); msg(true, ['Prompt copiado. Pégalo en la IA junto con la captura (o guárdalo como instrucciones de un proyecto para no pegarlo cada vez).']); }
+    catch(e){ const ta = document.getElementById('capTxt_'+t); ta.style.display='block'; ta.value = p; ta.select(); msg(false, ['No pude copiar automáticamente: selecciona y copia el texto del cuadro.']); }
+  });
+  document.getElementById('capPegar_'+t).addEventListener('click', async ()=>{
+    const ta = document.getElementById('capTxt_'+t);
+    let txt = ta.style.display==='block' ? ta.value.trim() : '';
+    if(!txt){ const cb = await leerPortapapeles(); txt = (cb||'').trim(); }
+    if(!txt){ ta.style.display='block'; ta.value=''; msg(false, ['No pude leer el portapapeles. Pega el JSON en el cuadro y pulsa de nuevo.']); return; }
+    try{
+      const r = procesarCaptura(txt, destino);
+      if(r.cancelado){ msg(false, ['Cancelado: no se reemplazó nada.']); return; }
+      ta.style.display='none'; ta.value='';
+      msg(true, [`✓ ${r.datos.partido} — ${r.datos.liga}${r.datos.tipo==='vivo'?` · en vivo ${r.datos.minuto!==null?r.datos.minuto+'′ ':''}${r.datos.marcador_local!==null?r.datos.marcador_local+'-'+r.datos.marcador_visitante:''}`:''}`, `${r.ids.length} campo(s) rellenados. Revisa antes de guardar.`, ...r.avisos]);
+    }catch(e){ ta.style.display='block'; msg(false, ['✗ '+e.message]); }
+  });
+}
+montarCaptura('capturaBoxGh','gh');
+montarCaptura('capturaBoxSc','sc');
+
 /* ============ IMPORTAR JSON EN SCOUT CORE ============ */
 document.getElementById('btnImportarSC').addEventListener('click', ()=>{
   const txt = document.getElementById('scJsonImport').value.trim();
@@ -2862,6 +3061,7 @@ function scCalcular(){
   const btnSim = document.getElementById('scBtnSim');
   if(btnSim) btnSim.addEventListener('click', scVerificarSimulacion);
   const inOu = document.getElementById('scOu075');
+  if(inOu && window.__capOu075){ inOu.value = String(window.__capOu075); setTimeout(()=>inOu.dispatchEvent(new Event('input',{bubbles:true})),0); }
   if(inOu) inOu.addEventListener('input', ()=>{
     const c = +String(inOu.value).replace(',', '.'), o = document.getElementById('scOu075Out');
     const t = totalOverProbs(P, 0.75);
