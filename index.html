@@ -143,18 +143,18 @@
 <div id="stoplossBanner"></div>
 
 <nav class="tabs">
-  <button class="active" data-tab="principal">00 · Principal</button>
+  <button data-tab="principal">00 · Principal</button>
   <button data-tab="reglas">01 · Reglas</button>
   <button data-tab="nuevo">02 · Nuevo registro</button>
   <button data-tab="scoutcore">03 · Scout Core</button>
   <button data-tab="abiertos">04 · Abiertos</button>
   <button data-tab="historial">05 · Historial</button>
-  <button data-tab="metas">06 · Metas</button>
+  <button class="active" data-tab="metas">06 · Metas</button>
   <button data-tab="config">07 · Config</button>
 </nav>
 
 <!-- TAB: PRINCIPAL -->
-<section id="tab-principal" class="tabpanel">
+<section id="tab-principal" class="tabpanel" style="display:none;">
   <div class="panel" style="border-color:#2a3d52;">
     <div class="verdict go" style="margin-bottom:18px; padding:16px; font-size:14px; line-height:1.6;">
       <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; letter-spacing:.06em; text-transform:uppercase; font-size:11px; color:var(--green); margin-bottom:6px;">Julius, el Stoharius</div>
@@ -608,12 +608,16 @@ hoy, sin retroceso, conquistaré la contienda.</p>
 </section>
 
 <!-- TAB: METAS -->
-<section id="tab-metas" class="tabpanel" style="display:none;">
+<section id="tab-metas" class="tabpanel">
   <div class="panel">
     <h2><span class="n">06</span>Metas y escalado de banca</h2>
     <div class="goalbar">
       <div class="label"><span>Meta del día</span><span id="metaDiaTxt"></span></div>
       <div class="track"><div class="fill" id="metaDiaFill"></div></div>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; margin:6px 0 2px; flex-wrap:wrap;">
+      <button class="btn small" id="btnActualizarHoja" type="button">↻ Actualizar desde la hoja</button>
+      <span id="lecturaHojaInfo" style="font-size:11px; color:var(--text-mute);"></span>
     </div>
 
     <div class="rule-card" id="cardMetaUnif" style="margin-top:6px; border-left-color:var(--amber);">
@@ -1017,35 +1021,77 @@ try{ const s1 = localStorage.getItem(L2_PEND_KEY); if(s1) l2Pend = JSON.parse(s1
 let bitacoraHoyCache = null;
 try{ const s = localStorage.getItem(BITACORA_CACHE_KEY); if(s) bitacoraHoyCache = JSON.parse(s); }catch(e){}
 
-function bankrollInicioHoy(){
-  if(bitacoraHoyCache && bitacoraHoyCache.fecha===getHoy() && bitacoraHoyCache.bankrollInicial!=='' && bitacoraHoyCache.bankrollInicial!=null){
-    return +bitacoraHoyCache.bankrollInicial;
-  }
-  return CONFIG.bankrollinicio; // respaldo si aún no hay fila de Bitácora para hoy
+/* ---- BASE DEL DÍA ----
+   Una sola fuente para «con cuánto arranco hoy, cuál es mi stake y cuál es mi meta». Orden de prioridad:
+   1) hoja:       hay fila de HOY en Bitácora → se usa tal cual (la hoja manda).
+   2) proyectada: aún no se activó hoy → se calcula con la ÚLTIMA fila con datos, con la misma regla que la hoja
+                  (arranca con el menor entre BR final real y BR final planificado de ese día; stake = ÷ 8).
+                  Así una pérdida o un día malo se arrastra al día siguiente y la meta de hoy es la correcta.
+   3) config:     no hay ninguna fila (primer uso) → respaldo de Config. */
+function numHoja(v){ // número venga como número, texto «8,50» o «$8.50»; null si está vacío o no es número
+  if(v===''||v===null||v===undefined) return null;
+  if(typeof v==='number') return isFinite(v) ? v : null;
+  let t = String(v).replace(/[^0-9,.\-]/g,'');
+  if(t.indexOf(',')>-1 && t.indexOf('.')>-1) t = t.replace(/,/g,'');
+  else t = t.replace(',', '.');
+  const n = parseFloat(t);
+  return isFinite(n) ? n : null;
 }
+function r2b(x){ return Math.round(x*100)/100; }
+function baseDelDia(){
+  const hoy = getHoy();
+  // 1) fila de hoy: primero la lectura puntual, y si no, la copia completa de la Bitácora
+  const filas = (bitacoraTabla && bitacoraTabla.filas) || [];
+  const filaTabla = filas.find(f=>f.fecha===hoy);
+  const h = (bitacoraHoyCache && bitacoraHoyCache.fecha===hoy) ? bitacoraHoyCache
+          : (filaTabla ? {bankrollInicial:filaTabla['Bank roll inicial'], stake:filaTabla['stake'], planificado:filaTabla['BR final planificado'], real:filaTabla['BR final real'], dia:filaTabla['Dia']} : null);
+  if(h){
+    const ini = numHoja(h.bankrollInicial);
+    if(ini!==null){
+      const stake = numHoja(h.stake) ?? r2b(ini/8);
+      const plan = numHoja(h.planificado) ?? r2b(ini+stake);
+      return {fuente:'hoja', inicio:ini, stake, planificado:plan, real:numHoja(h.real), dia:numHoja(h.dia), desde:hoy};
+    }
+  }
+  // 2) proyección desde la última fila anterior a hoy
+  const previas = filas.filter(f=>f.fecha && f.fecha<hoy).sort((x,y)=>x.fecha<y.fecha?-1:1);
+  const ult = previas[previas.length-1];
+  if(ult){
+    const ini0 = numHoja(ult['Bank roll inicial']);
+    const plan0 = numHoja(ult['BR final planificado']);
+    let real = numHoja(ult['BR final real']);
+    if(real===null) real = ini0;                       // día sin cierre: terminó donde empezó
+    if(real!==null){
+      // registros de ese día cerrados en este teléfono y aún no subidos al Sheet (cola de envío)
+      const pl = numHoja(ult.suma_pl_registros);
+      if(pl!==null && OUTBOX.length>0){
+        const dif = r2b(plDelDia(ult.fecha) - pl);
+        if(Math.abs(dif)>0.005) real = r2b(real + dif);
+      }
+      const inicio = r2b(plan0!==null ? Math.min(real, plan0) : real);
+      const stake = r2b(inicio/8);
+      return {fuente:'proyectada', inicio, stake, planificado:r2b(inicio+stake), real:null,
+              dia:(numHoja(ult.Dia)||0)+1, desde:ult.fecha, cierreReal:real, cierrePlan:plan0};
+    }
+  }
+  // 3) respaldo de Config
+  const ini = +CONFIG.bankrollinicio || 0, stake = +CONFIG.stakefijo || 0;
+  return {fuente:'config', inicio:ini, stake, planificado:r2b(ini+stake), real:null, dia:1, desde:null};
+}
+function bankrollInicioHoy(){ return baseDelDia().inicio; }
 /* P/L cerrado de un día = Goal Hunter + Scout Core (ambos suman al BR final real de la Bitácora). */
 function plDelDia(fecha){
   const suma = (arr)=>arr.filter(r=>r.estado==='Cerrado' && r.fecha===fecha).reduce((s,r)=>s+(+r.pl||0),0);
   return suma(RECORDS) + suma(SCOUT_RECORDS);
 }
-function stakeSugeridoHoy(){
-  if(bitacoraHoyCache && bitacoraHoyCache.fecha===getHoy() && bitacoraHoyCache.stake!=='' && bitacoraHoyCache.stake!=null){
-    return +bitacoraHoyCache.stake;
-  }
-  return CONFIG.stakefijo; // respaldo si aún no hay fila de Bitácora para hoy
-}
-function metaDiaObjetivo(){
-  // La meta del día es el "BR final planificado" de Bitácora — bankroll inicial + stake del día,
-  // leído directo de la hoja. Si aún no hay fila de hoy, se aproxima con el respaldo local.
-  if(bitacoraHoyCache && bitacoraHoyCache.fecha===getHoy() && bitacoraHoyCache.planificado!=='' && bitacoraHoyCache.planificado!=null){
-    return +bitacoraHoyCache.planificado;
-  }
-  return bankrollInicioHoy() + stakeSugeridoHoy();
-}
+function stakeSugeridoHoy(){ return baseDelDia().stake; }
+function metaDiaObjetivo(){ return baseDelDia().planificado; }  // «BR final planificado» de hoy (de la hoja o proyectado)
+let lecturaHojaTs = null, lecturaHojaError = '';
 async function refreshBitacoraHoy(){
   if(!ENDPOINT) return;
   try{
     const row = await apiGet('bitacora', {fecha: getHoy()});
+    lecturaHojaTs = Date.now(); lecturaHojaError = '';
     if(row){
       bitacoraHoyCache = {
         fecha: getHoy(),
@@ -1059,7 +1105,7 @@ async function refreshBitacoraHoy(){
       };
       localStorage.setItem(BITACORA_CACHE_KEY, JSON.stringify(bitacoraHoyCache));
     }
-  }catch(e){ /* sin conexión: se queda con el último valor cacheado */ }
+  }catch(e){ lecturaHojaError = (e && e.message) ? e.message : String(e); /* sin conexión: se queda con el último valor guardado */ }
 }
 
 function ensureEndpoint(force=false){
@@ -1281,13 +1327,16 @@ document.getElementById('f_mercado').addEventListener('change', (e)=>{
 });
 
 function refreshStakeDefault(){
-  document.getElementById('f_stake').value = stakeFijoDelDia().toFixed(2);
+  const fs_ = document.getElementById('f_stake');
+  if(document.activeElement!==fs_) fs_.value = stakeFijoDelDia().toFixed(2);
   const info = document.getElementById('stakeFuenteInfo');
   if(info){
-    const deBitacora = bitacoraHoyCache && bitacoraHoyCache.fecha===getHoy() && bitacoraHoyCache.stake!=='' && bitacoraHoyCache.stake!=null;
-    info.innerHTML = deBitacora
-      ? `<span style="color:var(--green);">● desde Bitácora, día ${bitacoraHoyCache.dia}</span>`
-      : `<span style="color:var(--amber);">● respaldo de Config (sin fila de Bitácora para hoy — ve a Metas → "Activar hoy en Bitácora")</span>`;
+    const b = baseDelDia();
+    info.innerHTML = b.fuente==='hoja'
+      ? `<span style="color:var(--green);">● desde Bitácora${b.dia?', día '+b.dia:''}</span>`
+      : b.fuente==='proyectada'
+      ? `<span style="color:var(--amber);">● proyectado desde el cierre del ${b.desde} (hoy aún sin activar en Bitácora: Metas → "Activar hoy")</span>`
+      : `<span style="color:var(--red);">● respaldo de Config (no hay ninguna fila de Bitácora en este dispositivo)</span>`;
   }
 }
 const STAKE_DIA_KEY = 'gambito_stake_dia_v1';
@@ -1297,26 +1346,18 @@ document.getElementById('btnRecalcularStake').addEventListener('click', async ()
   refreshStakeDefault();                   // vuelve a fijar el candado, ahora con el dato correcto
 });
 function stakeFijoDelDia(){
-  // El stake del día se fija UNA sola vez que venga de Bitácora (dato real) y ya no se
-  // toca en todo el día. Si la primera vez se fijó con el respaldo de Config porque
-  // Bitácora aún no había cargado, se permite UNA corrección automática en cuanto el
-  // dato real esté disponible — pero una vez fijado con dato real, no vuelve a moverse.
+  // El stake del día se fija una vez que viene de la hoja y no se mueve con el P/L del día.
+  // Excepciones (para que la app siga a la hoja y no al revés): (1) mientras hoy no esté activado, sigue
+  // la proyección con el último dato; (2) si la «Bank roll inicial» de hoy cambia en la hoja (edición manual
+  // o corrección del día anterior), el candado se rehace con la base nueva.
+  const b = baseDelDia();
   let cache = null;
   try{ const s = localStorage.getItem(STAKE_DIA_KEY); if(s) cache = JSON.parse(s); }catch(e){}
-  const bitacoraDisponible = bitacoraHoyCache && bitacoraHoyCache.fecha===getHoy() && bitacoraHoyCache.stake!=='' && bitacoraHoyCache.stake!=null;
-
-  if(cache && cache.fecha===getHoy()){
-    if(cache.fuente==='bitacora') return +cache.valor; // ya fijado con dato real: no se toca
-    if(bitacoraDisponible){ // estaba con respaldo, pero ya hay dato real: se corrige una vez
-      const valor = +bitacoraHoyCache.stake;
-      localStorage.setItem(STAKE_DIA_KEY, JSON.stringify({fecha:getHoy(), valor, fuente:'bitacora'}));
-      return valor;
-    }
-    return +cache.valor; // sigue sin Bitácora disponible, mantiene el respaldo
+  if(cache && cache.fecha===getHoy() && cache.fuente==='hoja' && b.fuente==='hoja' && cache.base!==undefined && Math.abs(+cache.base - b.inicio)<0.005){
+    return +cache.valor;
   }
-  const valor = bitacoraDisponible ? +bitacoraHoyCache.stake : CONFIG.stakefijo;
-  localStorage.setItem(STAKE_DIA_KEY, JSON.stringify({fecha:getHoy(), valor, fuente: bitacoraDisponible?'bitacora':'respaldo'}));
-  return valor;
+  try{ localStorage.setItem(STAKE_DIA_KEY, JSON.stringify({fecha:getHoy(), valor:b.stake, fuente:b.fuente, base:b.inicio})); }catch(e){}
+  return b.stake;
 }
 
 /* ============ DÍA / SEMANA — REGLAS OPERATIVAS ============ */
@@ -3468,20 +3509,31 @@ function renderMetas(){
   const cerrados = RECORDS.filter(r=>r.estado==='Cerrado');
   const plHoy = plDelDia(hoy);
   const bankrollInicio = bankrollInicioHoy();
-  const tieneBitacoraHoy = bitacoraHoyCache && bitacoraHoyCache.fecha===hoy;
+  const base = baseDelDia();
+  const tieneBitacoraHoy = base.fuente==='hoja';
   // Bankroll actual: si Bitácora ya tiene el BR final real de hoy, se usa ese (fuente de verdad);
   // si no, se aproxima con lo que sabe este dispositivo (inicio + P/L de sus propios registros).
-  const bankrollActual = tieneBitacoraHoy ? (+bitacoraHoyCache.real) : (bankrollInicio + plHoy);
+  const bankrollActual = (tieneBitacoraHoy && base.real!==null) ? base.real : (bankrollInicio + plHoy);
   const metaDia = metaDiaObjetivo();
-  const diaActual = tieneBitacoraHoy ? (+bitacoraHoyCache.dia || 1) : 1;
+  const diaActual = base.dia || 1;
 
   const pctDia = Math.max(0, Math.min(100, ((bankrollActual-bankrollInicio)/(metaDia-bankrollInicio||1))*100));
   document.getElementById('metaDiaTxt').textContent = `$${bankrollActual.toFixed(2)} / $${metaDia.toFixed(2)} (BR final planificado) — ${pctDia.toFixed(0)}%`;
   document.getElementById('metaDiaFill').style.width = pctDia+'%';
 
   const fuente = tieneBitacoraHoy
-    ? `<span style="color:var(--green);">● leído de Bitácora, día ${bitacoraHoyCache.dia}</span>`
-    : `<span style="color:var(--amber);">● sin fila de Bitácora para hoy (${hoy}) — usando respaldo de Config</span>`;
+    ? `<span style="color:var(--green);">● leído de Bitácora, día ${base.dia||'?'}</span>`
+    : base.fuente==='proyectada'
+    ? `<span style="color:var(--amber);">● hoy (${hoy}) aún no está activado en Bitácora — meta PROYECTADA desde el último dato: el ${base.desde} cerró en $${base.cierreReal.toFixed(2)}${base.cierrePlan!==null?' (plan $'+base.cierrePlan.toFixed(2)+')':''}; se arranca con el menor. Al activar el día, la hoja toma el control.</span>`
+    : `<span style="color:var(--red);">● no hay ninguna fila de Bitácora en este dispositivo — usando respaldo de Config (valores del Día 1)</span>`;
+  const lec = document.getElementById('lecturaHojaInfo');
+  if(lec){
+    const hh = (t)=> new Intl.DateTimeFormat('es-EC',{timeZone:TZ_ECUADOR, hour:'2-digit', minute:'2-digit', hour12:false}).format(new Date(t));
+    const tsMax = Math.max(lecturaHojaTs||0, (bitacoraTabla && bitacoraTabla.ts)||0);
+    lec.innerHTML = lecturaHojaError
+      ? `<span style="color:var(--red);">No se pudo leer la hoja (${escaparHTML(lecturaHojaError)}). Se muestra el último dato guardado${tsMax?' de las '+hh(tsMax):''}.</span>`
+      : tsMax ? `Hoja leída a las ${hh(tsMax)}.` : 'Aún no se ha leído la hoja en este dispositivo.';
+  }
   document.getElementById('bankrollInfo').innerHTML = `${fuente}<br>Bankroll al inicio de hoy: <b>$${bankrollInicio.toFixed(2)}</b><br>P/L de hoy (Goal Hunter + Scout Core, este dispositivo): <b style="color:${plHoy>=0?'var(--green)':'var(--red)'}">$${plHoy.toFixed(2)}</b><br>BR final planificado: <b>$${metaDia.toFixed(2)}</b><br>BR final real: <b>$${bankrollActual.toFixed(2)}</b>${(brManual()[hoy]!==undefined && Math.abs(brManual()[hoy]-bankrollActual)<0.005)?' <span style="color:var(--amber); font-size:11px;">(fijado a mano)</span>':''}<br>Stake de hoy (BR inicial ÷ 8): <b style="color:var(--amber);">$${(bankrollInicio/8).toFixed(2)}</b>`;
   try{ renderSemilla(); }catch(e){ console.error('Semilla', e); }
   try{ renderCuadre(); }catch(e){ console.error('Cuadre', e); }
@@ -4068,17 +4120,17 @@ function actualizarBaseL2(){
 const CASA_KEY = 'gambito_casa_v1';
 function cuadreCalc(){
   const hoy = getHoy();
-  const tieneHoy = bitacoraHoyCache && bitacoraHoyCache.fecha===hoy;
-  const bankrollInicio = bankrollInicioHoy();
+  const baseC = baseDelDia();
+  const bankrollInicio = baseC.inicio;
   const plHoy = plDelDia(hoy);
-  const D = l2R2(tieneHoy ? (+bitacoraHoyCache.real) : (bankrollInicio + plHoy));
+  const D = l2R2((baseC.fuente==='hoja' && baseC.real!==null) ? baseC.real : (bankrollInicio + plHoy));
   const fila = l2Filas().find(f=>f.fecha===hoy);
   const exc = l2R2(fila ? (l2Num(fila['Excedente L2'])||0) : 0);
   const cierre = fila ? l2Num(fila['Saldo L2 cierre']) : null;
   const est = l2Estado();
   const g3 = cierre!==null ? cierre : l2R2(est.disponible + exc); // sin cierre: saldo + excedentes + el de hoy, sin resultado all-in
   const gambito = l2R2(D - exc);
-  return {D, exc, cierre, g3, gambito, total:l2R2(gambito+g3), tieneHoy, stake:l2R2(bankrollInicio/8), bankrollInicio};
+  return {D, exc, cierre, g3, gambito, total:l2R2(gambito+g3), tieneHoy: baseC.fuente==='hoja', stake:l2R2(bankrollInicio/8), bankrollInicio};
 }
 function renderCuadre(){
   const out = document.getElementById('cuadreOut'); if(!out) return;
@@ -4207,6 +4259,28 @@ document.getElementById('btnGuardarL2').addEventListener('click', async ()=>{
   else if(!navigator.onLine || !ENDPOINT){ mostrar(true, `Guardado en este dispositivo (${l2Money(valor)}). Subirá solo cuando haya señal.`); }
   else { mostrar(false, 'No se pudo subir al Sheet: '+(l2UltimoError||'sin detalle')+'. Queda guardado aquí y se reintenta solo.'); }
   renderLinea2Todo();
+});
+
+/* ============ LEER LA HOJA AL VOLVER A LA APP ============
+   Si editas la hoja a mano (o activas el día desde otro dispositivo), la app lo recoge al volver a ella,
+   sin temporizadores que interrumpan mientras escribes. Solo LEE (Bitácora); no envía nada. */
+let actualizandoHoja = false, ultimaActualizacionHoja = 0;
+async function actualizarDesdeHoja(forzar){
+  if(actualizandoHoja || !ENDPOINT) return;
+  if(!forzar && Date.now()-ultimaActualizacionHoja < 15000) return;
+  if(navigator.onLine===false){ renderAllSafe(); return; }
+  actualizandoHoja = true;
+  try{ await refreshBitacoraHoy(); await refreshBitacoraTabla(); }
+  finally{ actualizandoHoja = false; ultimaActualizacionHoja = Date.now(); }
+  refreshStakeDefault();
+  if(forzar) renderAll(); else renderAllSafe();
+}
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) actualizarDesdeHoja(false); });
+window.addEventListener('focus', ()=>{ actualizarDesdeHoja(false); });
+document.getElementById('btnActualizarHoja').addEventListener('click', async ()=>{
+  const b = document.getElementById('btnActualizarHoja'); b.disabled = true; b.textContent = 'Leyendo…';
+  await actualizarDesdeHoja(true);
+  b.disabled = false; b.textContent = '↻ Actualizar desde la hoja';
 });
 
 /* ============ OFFLINE: reconexión, almacenamiento persistente, nueva versión ============ */
