@@ -611,13 +611,22 @@ hoy, sin retroceso, conquistaré la contienda.</p>
 <section id="tab-metas" class="tabpanel">
   <div class="panel">
     <h2><span class="n">06</span>Metas y escalado de banca</h2>
-    <div class="goalbar">
-      <div class="label"><span>Meta del día</span><span id="metaDiaTxt"></span></div>
-      <div class="track"><div class="fill" id="metaDiaFill"></div></div>
-    </div>
-    <div style="display:flex; gap:8px; align-items:center; margin:6px 0 2px; flex-wrap:wrap;">
-      <button class="btn small" id="btnActualizarHoja" type="button">↻ Actualizar desde la hoja</button>
-      <span id="lecturaHojaInfo" style="font-size:11px; color:var(--text-mute);"></span>
+
+    <!-- 1 · HOY: estado del día, stake, meta y activación (lo primero que necesitas al abrir) -->
+    <div class="rule-card" id="cardHoy" style="border-left-color:var(--teal);">
+      <div id="hoyCabecera" style="display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap;"></div>
+      <div id="hoyCifras" style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:10px 0;"></div>
+      <div class="goalbar" style="margin-bottom:8px; padding:12px;">
+        <div class="label" style="flex-direction:column; gap:3px;"><span>Meta del día</span><span id="metaDiaTxt" style="color:var(--text); font-size:12px;"></span></div>
+        <div class="track"><div class="fill" id="metaDiaFill"></div></div>
+      </div>
+      <p id="hoyNota" style="font-size:11.5px; line-height:1.55; margin-bottom:8px;"></p>
+      <button class="btn" id="btnActivarHoy" data-activar-hoy type="button" style="width:100%; display:none;">Activar hoy en Bitácora</button>
+      <p id="activarMsg" style="display:none; font-size:11.5px; margin-top:8px; line-height:1.5;"></p>
+      <div style="display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap;">
+        <button class="btn secondary small" id="btnActualizarHoja" type="button">↻ Actualizar desde la hoja</button>
+        <span id="lecturaHojaInfo" style="font-size:11px; color:var(--text-mute);"></span>
+      </div>
     </div>
 
     <div class="rule-card" id="cardMetaUnif" style="margin-top:6px; border-left-color:var(--amber);">
@@ -642,6 +651,7 @@ hoy, sin retroceso, conquistaré la contienda.</p>
       <div class="rule-card">
         <h3>Gambito · hoy</h3>
         <p id="bankrollInfo"></p>
+        <div id="cierreMananaInfo" style="margin-top:10px; border-top:1px solid var(--border, #2a323b); padding-top:10px; font-size:12px; line-height:1.65;"></div>
         <div style="margin-top:10px; border-top:1px solid var(--border, #2a323b); padding-top:10px;">
           <label for="brFijarValor" style="font-size:11px; color:var(--text-mute);">Fijar el cierre de hoy a mano — BR final real ($)</label>
           <div style="display:flex; gap:8px; margin-top:4px;">
@@ -671,7 +681,7 @@ hoy, sin retroceso, conquistaré la contienda.</p>
       <h3>Línea G3 — pseudo-Gambito ÷ 3 (all-in de prueba)</h3>
       <p style="color:var(--text-dim); font-size:11.5px; margin-bottom:10px;">Pseudo-Gambito dividido entre 3, mezclada con Gambito solo como prueba. Solo recibe el excedente que Gambito genera sobre su plan, nunca intercambia dinero con Gambito y no se registran sus operaciones: al cerrar el día anotas el total.</p>
       <div id="l2Resumen"></div>
-      <div class="row2" style="margin-top:10px;">
+      <div class="row2" style="margin-top:10px; grid-template-columns:1fr;">
         <div><label>Día a cerrar</label><select id="l2Fecha"></select></div>
         <div><label>Total de G3 al cerrar el día ($)</label><input type="text" inputmode="decimal" id="l2Total" placeholder="ej. 3.40"></div>
       </div>
@@ -697,18 +707,12 @@ hoy, sin retroceso, conquistaré la contienda.</p>
 
     <!-- 4 · MANTENIMIENTO (plegado) -->
     <details id="detMant" style="margin-top:16px;">
-      <summary id="detMantSum" style="cursor:pointer; font-size:12px; color:var(--text-mute); text-transform:uppercase; letter-spacing:.07em; padding:8px 0;">Mantenimiento de Bitácora · verificación, activar día, ajustar valor</summary>
+      <summary id="detMantSum" style="cursor:pointer; font-size:12px; color:var(--text-mute); text-transform:uppercase; letter-spacing:.07em; padding:8px 0;">Mantenimiento de Bitácora · verificación y ajustar valor</summary>
     <div class="rule-card discard" id="cardChequeo" style="margin-top:12px;">
       <h3>Verificación de Bitácora</h3>
       <div id="chequeoLista"></div>
     </div>
 
-
-    <div class="rule-card limits" style="margin-top:16px;">
-      <h3>Activar día de hoy en Bitácora</h3>
-      <p style="color:var(--text-dim); font-size:11.5px; margin-bottom:10px;">Registra la fecha de hoy en la próxima fila libre de Bitácora, sin entrar al Sheet. Si ya estaba activada, no pasa nada — solo te confirma.</p>
-      <button class="btn secondary small" id="btnActivarDia" style="width:100%;">Activar hoy en Bitácora</button>
-    </div>
 
     <div class="rule-card limits" style="margin-top:16px;">
       <h3>Ajustar un valor de Bitácora de hoy</h3>
@@ -900,12 +904,12 @@ hoy, sin retroceso, conquistaré la contienda.</p>
   <div class="panel">
     <h2><span class="n">07</span>Configuración operativa</h2>
 
-    <div class="rule-card"><h3>Banca del día (actualizar cada mañana)</h3>
+    <div class="rule-card"><h3>Respaldo sin Bitácora (solo se usa si no existe ninguna fila — primer uso)</h3>
       <div class="grid">
         <div><label>Stake de respaldo, si Bitácora no tiene fila hoy ($)</label><input type="number" id="c_stakefijo" placeholder="ej. 0.93" step="0.01"></div>
-        <div><label>Stake mínimo (si se cubre la meta del día) ($)</label><input type="number" id="c_stakeminimo" placeholder="ej. 0.30" step="0.01"></div>
+        <div><label>Stake mínimo ($) — sin efecto actual (se conserva por compatibilidad)</label><input type="number" id="c_stakeminimo" placeholder="ej. 0.30" step="0.01"></div>
         <div><label>Bankroll de respaldo, si Bitácora no tiene fila hoy ($)</label><input type="number" id="c_bankrollinicio" placeholder="ej. 8.00" step="0.01"></div>
-        <div><label>Meta diaria de largo plazo ($) — referencia, ya no dispara "meta cubierta"</label><input type="number" id="c_metadiaria" placeholder="ej. 120" step="0.01"></div>
+        <div><label>Meta diaria de largo plazo ($) — sin efecto actual (solo referencia)</label><input type="number" id="c_metadiaria" placeholder="ej. 120" step="0.01"></div>
       </div>
     </div>
 
@@ -1257,6 +1261,7 @@ async function syncWithCloud(){
   if(ok1 && ok2 && ok3){ lastSyncError=''; try{ localStorage.setItem(LAST_SYNC_KEY, String(Date.now())); }catch(e){} }
   saveLocalCache();
   await flushOutbox();
+  await flushActivacion();
   await refreshBitacoraHoy();
   await flushL2();
   await refreshBitacoraTabla();
@@ -1335,7 +1340,7 @@ function refreshStakeDefault(){
     info.innerHTML = b.fuente==='hoja'
       ? `<span style="color:var(--green);">● desde Bitácora${b.dia?', día '+b.dia:''}</span>`
       : b.fuente==='proyectada'
-      ? `<span style="color:var(--amber);">● proyectado desde el cierre del ${b.desde} (hoy aún sin activar en Bitácora: Metas → "Activar hoy")</span>`
+      ? `<span style="color:var(--amber);">● proyectado desde el cierre del ${b.desde}: hoy aún no está activado en Bitácora.</span> <button type="button" class="btn small" data-activar-hoy style="padding:3px 8px; font-size:10px;">Activar hoy</button>`
       : `<span style="color:var(--red);">● respaldo de Config (no hay ninguna fila de Bitácora en este dispositivo)</span>`;
   }
 }
@@ -3418,26 +3423,60 @@ document.getElementById('btnSemilla').addEventListener('click', async ()=>{
   btn.disabled = false; btn.textContent = 'Fijar semilla';
 });
 
-document.getElementById('btnActivarDia').addEventListener('click', async ()=>{
-  if(!ENDPOINT){ alert('No hay URL del Web App configurada — usa "Servidor / Sheet" primero.'); return; }
-  const btn = document.getElementById('btnActivarDia');
-  btn.disabled = true; btn.textContent = 'Activando...';
+/* ---- ACTIVAR HOY ---- */
+const ACTIVAR_PEND_KEY = 'gambito_activar_pend_v1';
+function activarPend(){ try{ const p = JSON.parse(localStorage.getItem(ACTIVAR_PEND_KEY)||'null'); return (p && p.fecha) ? p : null; }catch(e){ return null; } }
+function activarPendSet(fecha){ try{ if(fecha) localStorage.setItem(ACTIVAR_PEND_KEY, JSON.stringify({fecha, ts:Date.now()})); else localStorage.removeItem(ACTIVAR_PEND_KEY); }catch(e){} }
+function esErrorDeRed(e){ return !!e && (e instanceof TypeError || /Tiempo de espera/i.test(e.message||'')); }
+function mensajeActivar(texto, tipo){
+  const el = document.getElementById('activarMsg'); if(!el) return;
+  el.style.display = texto ? 'block' : 'none';
+  el.style.color = tipo==='ok' ? 'var(--green)' : (tipo==='err' ? 'var(--red)' : 'var(--amber)');
+  el.textContent = texto || '';
+}
+let activandoHoy = false;
+async function activarHoy(){
+  if(activandoHoy) return;
+  activandoHoy = true;
+  const fecha = getHoy();
+  const btns = document.querySelectorAll('[data-activar-hoy]');
+  btns.forEach(b=>{ b.disabled = true; });
   try{
-    const res = await apiPost({action:'bitacora_activar_dia', fecha:getHoy()});
+    if(!ENDPOINT){ mensajeActivar('No hay URL del Web App configurada: usa «Servidor / Sheet» primero.', 'err'); return; }
+    const sinSenal = ()=>{ activarPendSet(fecha); mensajeActivar('Sin señal: la activación quedó guardada y se enviará sola cuando vuelva la conexión. Mientras tanto la app usa la meta proyectada.', 'aviso'); renderAll(); };
+    if(navigator.onLine===false){ sinSenal(); return; }
+    let res;
+    try{ res = await apiPost({action:'bitacora_activar_dia', fecha}); }
+    catch(e){ if(esErrorDeRed(e)){ sinSenal(); return; } throw e; }
     if(res && res.ok){
-      await refreshBitacoraHoy();
-      await refreshBitacoraTabla();
-      renderMetas(); renderLinea2Todo();
-      alert(res.ya_existia ? `Hoy ya estaba activada como Día ${res.dia}.` : `Listo — hoy quedó activada como Día ${res.dia} de Bitácora.`);
+      activarPendSet(null);
+      await refreshBitacoraHoy(); await refreshBitacoraTabla();
+      refreshStakeDefault(); renderAll();
+      const b = baseDelDia();
+      mensajeActivar((res.ya_existia ? `Hoy ya estaba activado como Día ${res.dia}.` : `Listo: hoy quedó activado como Día ${res.dia}.`) + ` Stake de hoy $${b.stake.toFixed(2)} · meta $${b.planificado.toFixed(2)}.`, 'ok');
     } else {
-      alert('No se pudo activar: '+(res&&res.error?res.error:'error desconocido'));
+      mensajeActivar('No se pudo activar: '+(res && res.error ? res.error : 'error desconocido'), 'err');
     }
   }catch(e){
-    alert('Fallo de conexión: '+(e.message||e));
+    mensajeActivar('No se pudo activar: '+(e && e.message || e), 'err');
+  }finally{
+    activandoHoy = false;
+    btns.forEach(b=>{ b.disabled = false; });
   }
-  btn.disabled = false; btn.textContent = 'Activar hoy en Bitácora';
+}
+// Activación guardada sin señal: se envía al volver la conexión, salvo que ya no tenga sentido (el día ya existe o quedaría fuera de orden).
+async function flushActivacion(){
+  const p = activarPend();
+  if(!p || !ENDPOINT || navigator.onLine===false) return;
+  const filas = (bitacoraTabla && bitacoraTabla.filas) || [];
+  const ultima = filas.reduce((m,f)=> (f.fecha && f.fecha>m) ? f.fecha : m, '');
+  if(filas.some(f=>f.fecha===p.fecha) || (ultima && p.fecha<ultima)){ activarPendSet(null); return; }
+  try{ const res = await apiPost({action:'bitacora_activar_dia', fecha:p.fecha}); if(res && res.ok) activarPendSet(null); }catch(e){ /* se reintenta luego */ }
+}
+document.addEventListener('click', (ev)=>{
+  const b = ev.target && ev.target.closest ? ev.target.closest('[data-activar-hoy]') : null;
+  if(b){ ev.preventDefault(); activarHoy(); }
 });
-
 document.getElementById('btnFixBitacora').addEventListener('click', async ()=>{
   const campo = document.getElementById('fixCampo').value;
   const valorRaw = document.getElementById('fixValor').value.trim();
@@ -3454,10 +3493,10 @@ document.getElementById('btnFixBitacora').addEventListener('click', async ()=>{
       await refreshBitacoraTabla();
       if(campo==='BR final real') brManualSet(getHoy(), valor);
       renderMetas(); renderLinea2Todo();
-      alert(`Corregido. ${campo} de hoy = ${valor}`);
+      alert(`Corregido. ${campo} de hoy = ${valor}` + (campo==='BR final real' ? '\n\n' + describirCierre(+valor).lineas.join('\n') : ''));
       document.getElementById('fixValor').value = '';
     } else {
-      alert('No se pudo corregir: '+(res&&res.error?res.error:'error desconocido')+'\n\n¿Ya activaste el día de hoy en Bitácora? Usa el botón "Activar hoy en Bitácora" primero si es la primera vez.');
+      alert('No se pudo corregir: '+(res&&res.error?res.error:'error desconocido')+'\n\n¿Ya activaste el día de hoy en Bitácora? Usa el botón «Activar hoy en Bitácora» (tarjeta de arriba) primero si es la primera vez.');
     }
   }catch(e){
     alert('Fallo de conexión: '+(e.message||e));
@@ -3474,8 +3513,9 @@ document.getElementById('btnBrFijar').addEventListener('click', async ()=>{
   const valor = Math.round(v*100)/100;
   if(!ENDPOINT){ mostrar(false, 'No hay URL del Web App configurada — usa "Servidor / Sheet" primero.'); return; }
   if(!navigator.onLine){ mostrar(false, 'Sin conexión: fijar el cierre escribe en el Sheet. Inténtalo cuando haya señal.'); return; }
-  if(!bitacoraHoyCache || bitacoraHoyCache.fecha!==getHoy()){ mostrar(false, 'Hoy no está activado en Bitácora: usa "Activar hoy en Bitácora" (en Mantenimiento) primero.'); return; }
-  if(!confirm(`Fijar el BR final real de hoy en $${valor.toFixed(2)}?\n\nEl Sheet dejará de calcular esa celda por el resto del día.`)) return;
+  if(!bitacoraHoyCache || bitacoraHoyCache.fecha!==getHoy()){ mostrar(false, 'Hoy no está activado en Bitácora: usa «Activar hoy en Bitácora» (tarjeta de arriba) primero.'); return; }
+  const dc = describirCierre(valor);
+  if(!confirm(`Fijar el BR final real de hoy en $${valor.toFixed(2)}?\n\n${dc.titulo}\n• ${dc.lineas.join('\n• ')}\n\nEl Sheet dejará de calcular esa celda por el resto del día.`)) return;
   const btn = document.getElementById('btnBrFijar');
   btn.disabled = true; btn.textContent = 'Fijando…';
   try{
@@ -3485,7 +3525,7 @@ document.getElementById('btnBrFijar').addEventListener('click', async ()=>{
       await refreshBitacoraHoy(); await refreshBitacoraTabla();
       renderMetas(); renderLinea2Todo();
       document.getElementById('brFijarValor').value = '';
-      mostrar(true, `Cierre de hoy fijado en $${valor.toFixed(2)}.`);
+      mostrar(true, `Cierre de hoy fijado en $${valor.toFixed(2)}. ${dc.lineas.slice(0,2).join(' ')}`);
     } else {
       mostrar(false, 'No se pudo fijar: '+(res&&res.error?res.error:'error desconocido'));
     }
@@ -3501,6 +3541,73 @@ function autoGrowTodas(){ document.querySelectorAll('textarea.notas-largas').for
 document.addEventListener('input', (e)=>{ if(e.target && e.target.classList && e.target.classList.contains('notas-largas')) autoGrowNotas(e.target); });
 document.querySelectorAll('nav.tabs button').forEach(b=>b.addEventListener('click', ()=>setTimeout(autoGrowTodas, 50)));
 window.addEventListener('resize', autoGrowTodas);
+
+/* ---- REGLA DE CIERRE (la del libro de Bitácora) ----
+   El día termina en «real» (BR final real). Gambito SIGUE mañana con el MENOR entre real y plan.
+   · real > plan  → lo que pasa del plan es el EXCEDENTE y se va ENTERO a G3; Gambito sigue solo con el plan.
+   · real ≤ plan  → no hay excedente: nada pasa a G3. Una pérdida (o un día corto) es solo de Gambito:
+                    sigue mañana con lo que queda, y G3 no se toca. */
+function reglaCierre(real, plan, inicio){
+  const exc = Math.max(0, r2b(real - plan));
+  const sigue = r2b(Math.min(real, plan));
+  const resultado = r2b(real - inicio);
+  const tipo = real <= 0 ? 'sin-saldo'
+    : exc > 0 ? 'sobre-plan'
+    : resultado > 0.004 ? 'ganancia-parcial'
+    : resultado < -0.004 ? 'perdida' : 'sin-cambio';
+  return {exc, sigue, resultado, tipo, stakeManana: r2b(Math.max(0, sigue)/8), metaManana: r2b(Math.max(0, sigue) * 9 / 8)};
+}
+// Total de G3 mañana SIN contar el resultado de sus all-in: saldo vigente + excedentes firmes + el excedente de hoy
+// (o el cierre de hoy si ya lo anotaste, que ya incluye ese excedente).
+function g3Manana(excHoy){
+  const e = l2Estado(), hoy = getHoy();
+  const fh = e.filas.find(f=>f.fecha===hoy);
+  const kh = fh ? l2Num(fh['Saldo L2 cierre']) : null;
+  if(kh!==null) return {total:kh, conCierre:true};
+  return {total:l2R2(e.disponible + excHoy), conCierre:false, actual:e.disponible};
+}
+function describirCierre(real){
+  const b = baseDelDia();
+  const r = reglaCierre(real, b.planificado, b.inicio);
+  const hayG3 = bitacoraTabla && bitacoraTabla.l2Listo!==false;
+  const g3 = hayG3 ? g3Manana(r.exc) : null;
+  const $ = (v)=>'$'+Math.abs(v).toFixed(2);
+  const sg = (v)=>(v>=0?'+':'-')+$(v);
+  const lineas = [];
+  let titulo;
+  if(r.tipo==='sobre-plan'){
+    titulo = `Cierre en ${$(real)} (${sg(r.resultado)}): por encima del plan`;
+    lineas.push(`Excedente de ${$(r.exc)}: pasa ENTERO a G3.`);
+    lineas.push(`Gambito sigue mañana solo con el plan: ${$(r.sigue)} (stake ${$(r.stakeManana)} · meta ${$(r.metaManana)}).`);
+  } else if(r.tipo==='ganancia-parcial'){
+    titulo = `Cierre en ${$(real)} (${sg(r.resultado)}): ganancia por debajo del plan`;
+    lineas.push('No hay excedente: nada pasa a G3.');
+    lineas.push(`Gambito sigue mañana con todo lo que tiene: ${$(r.sigue)} (stake ${$(r.stakeManana)} · meta ${$(r.metaManana)}).`);
+  } else if(r.tipo==='perdida'){
+    titulo = `Cierre en ${$(real)} (${sg(r.resultado)}): día de pérdida`;
+    lineas.push('La pérdida es solo de Gambito: no se descuenta nada de G3.');
+    lineas.push(`Gambito sigue mañana con lo que queda: ${$(r.sigue)} (stake ${$(r.stakeManana)} · meta ${$(r.metaManana)}).`);
+  } else if(r.tipo==='sin-saldo'){
+    titulo = `Cierre en ${$(Math.max(0,real))}: Gambito se queda sin saldo`;
+    lineas.push('Mañana Gambito no podrá operar hasta que repongas el «Bank roll inicial» en la hoja. G3 no se toca.');
+  } else {
+    titulo = `Cierre en ${$(real)}: sin cambio frente al arranque`;
+    lineas.push('No hay excedente: nada pasa a G3.');
+    lineas.push(`Gambito sigue mañana con ${$(r.sigue)} (stake ${$(r.stakeManana)} · meta ${$(r.metaManana)}).`);
+  }
+  if(g3) lineas.push(g3.conCierre ? `G3 mañana: ${$(g3.total)} (el cierre de hoy ya incluye el excedente).`
+                                  : `G3 mañana: ${$(g3.total)}${r.exc>0 ? ` (${$(g3.actual)} + excedente ${$(r.exc)}, sin contar el resultado de sus all-in)` : ' (sin cambios)'}.`);
+  return {r, g3, titulo, lineas};
+}
+function renderCierreManana(base, real, manual){
+  const el = document.getElementById('cierreMananaInfo'); if(!el) return;
+  if(base.fuente!=='hoja' || real===null){ el.innerHTML = '<span style="color:var(--text-mute);">Cuando el día esté activado verás aquí qué pasa al cerrarlo: cuánto queda en Gambito, cuánto pasa a G3 y con cuánto arranca mañana.</span>'; return; }
+  const d = describirCierre(real);
+  const color = {'sobre-plan':'var(--green)','ganancia-parcial':'var(--green)','perdida':'var(--red)','sin-saldo':'var(--red)'}[d.r.tipo] || 'var(--text-dim)';
+  el.innerHTML = `<div style="font-size:10.5px; color:var(--text-mute); text-transform:uppercase; letter-spacing:.06em;">Cierre de hoy → mañana ${manual?'(cierre fijado a mano)':'(si cierras con el BR final real actual)'}</div>
+    <div style="color:${color}; font-weight:600; margin:2px 0 4px;">${escaparHTML(d.titulo)}</div>
+    <ul style="padding-left:18px; color:var(--text-dim);">${d.lineas.map(l=>`<li>${escaparHTML(l)}</li>`).join('')}</ul>`;
+}
 
 const TASA_DIARIA_PLAN = 1 / 8; // stake = bankroll/8 (sin reserva): ganar 1 stake al día = +12.5%/día compuesto
 
@@ -3518,13 +3625,15 @@ function renderMetas(){
   const diaActual = base.dia || 1;
 
   const pctDia = Math.max(0, Math.min(100, ((bankrollActual-bankrollInicio)/(metaDia-bankrollInicio||1))*100));
-  document.getElementById('metaDiaTxt').textContent = `$${bankrollActual.toFixed(2)} / $${metaDia.toFixed(2)} (BR final planificado) — ${pctDia.toFixed(0)}%`;
+  const cubierta = tieneBitacoraHoy && bankrollActual >= metaDia - 0.005;
+  document.getElementById('metaDiaTxt').textContent = `$${bankrollActual.toFixed(2)} / $${metaDia.toFixed(2)} (BR final planificado) — ${pctDia.toFixed(0)}%${cubierta?' ✓ meta cubierta':''}`;
   document.getElementById('metaDiaFill').style.width = pctDia+'%';
+  try{ renderHoyCard(base, bankrollActual, metaDia); }catch(e){ console.error('Tarjeta hoy', e); }
 
   const fuente = tieneBitacoraHoy
     ? `<span style="color:var(--green);">● leído de Bitácora, día ${base.dia||'?'}</span>`
     : base.fuente==='proyectada'
-    ? `<span style="color:var(--amber);">● hoy (${hoy}) aún no está activado en Bitácora — meta PROYECTADA desde el último dato: el ${base.desde} cerró en $${base.cierreReal.toFixed(2)}${base.cierrePlan!==null?' (plan $'+base.cierrePlan.toFixed(2)+')':''}; se arranca con el menor. Al activar el día, la hoja toma el control.</span>`
+    ? `<span style="color:var(--amber);">● PROYECTADA desde el cierre del ${base.desde} ($${base.cierreReal.toFixed(2)}${base.cierrePlan!==null?', plan $'+base.cierrePlan.toFixed(2):''}); se arranca con el menor. Al activar el día, la hoja toma el control.</span>`
     : `<span style="color:var(--red);">● no hay ninguna fila de Bitácora en este dispositivo — usando respaldo de Config (valores del Día 1)</span>`;
   const lec = document.getElementById('lecturaHojaInfo');
   if(lec){
@@ -3534,18 +3643,56 @@ function renderMetas(){
       ? `<span style="color:var(--red);">No se pudo leer la hoja (${escaparHTML(lecturaHojaError)}). Se muestra el último dato guardado${tsMax?' de las '+hh(tsMax):''}.</span>`
       : tsMax ? `Hoja leída a las ${hh(tsMax)}.` : 'Aún no se ha leído la hoja en este dispositivo.';
   }
-  document.getElementById('bankrollInfo').innerHTML = `${fuente}<br>Bankroll al inicio de hoy: <b>$${bankrollInicio.toFixed(2)}</b><br>P/L de hoy (Goal Hunter + Scout Core, este dispositivo): <b style="color:${plHoy>=0?'var(--green)':'var(--red)'}">$${plHoy.toFixed(2)}</b><br>BR final planificado: <b>$${metaDia.toFixed(2)}</b><br>BR final real: <b>$${bankrollActual.toFixed(2)}</b>${(brManual()[hoy]!==undefined && Math.abs(brManual()[hoy]-bankrollActual)<0.005)?' <span style="color:var(--amber); font-size:11px;">(fijado a mano)</span>':''}<br>Stake de hoy (BR inicial ÷ 8): <b style="color:var(--amber);">$${(bankrollInicio/8).toFixed(2)}</b>`;
+  // Detalle de Gambito: una sola cifra por concepto, todas desde la misma base (baseDelDia)
+  const real = tieneBitacoraHoy ? base.real : null;
+  const manual = brManual()[hoy]!==undefined && real!==null && Math.abs(brManual()[hoy]-real)<0.005;
+  const variacion = real!==null ? r2b(real - bankrollInicio) : plHoy;
+  const signo = (v)=> (v>=0?'+':'-')+'$'+Math.abs(v).toFixed(2);
+  const colorV = variacion>=0 ? 'var(--green)' : 'var(--red)';
+  const exc = real!==null ? Math.max(0, r2b(real - metaDia)) : 0;
+  let nota = '';
+  if(real!==null && Math.abs(variacion - plHoy) > 0.01){
+    nota = manual
+      ? `<br><span style="color:var(--text-mute); font-size:11px;">El BR final real está fijado a mano (operaste fuera de la app): por eso difiere del P/L registrado aquí.</span>`
+      : `<br><span style="color:var(--amber); font-size:11px;">Difiere del P/L registrado en la app (${signo(plHoy)}). Revisa «Verificación de Bitácora» abajo.</span>`;
+  }
+  document.getElementById('bankrollInfo').innerHTML = `${fuente}<br>Bankroll al inicio de hoy: <b>$${bankrollInicio.toFixed(2)}</b><br>Stake de hoy (BR inicial ÷ 8): <b style="color:var(--amber);">$${base.stake.toFixed(2)}</b><br>BR final planificado (meta): <b>$${metaDia.toFixed(2)}</b><br>BR final real: <b>$${bankrollActual.toFixed(2)}</b>${real===null?' <span style="color:var(--text-mute); font-size:11px;">(estimado: inicio + P/L de este dispositivo)</span>':''}${manual?' <span style="color:var(--amber); font-size:11px;">(fijado a mano)</span>':''}<br>Variación del día: <b style="color:${colorV}">${signo(variacion)}</b>${real!==null?' <span style="color:var(--text-mute); font-size:11px;">(real − inicio)</span>':''}<br>P/L registrado en la app (Goal Hunter + Scout Core, este dispositivo): <b style="color:${plHoy>=0?'var(--green)':'var(--red)'}">${signo(plHoy)}</b>${nota}${exc>0.004?`<br>Excedente sobre el plan que pasa a G3 al cerrar el día: <b>$${exc.toFixed(2)}</b>`:''}`;
+  try{ renderCierreManana(base, real, manual); }catch(e){ console.error('Cierre → mañana', e); }
   try{ renderSemilla(); }catch(e){ console.error('Semilla', e); }
   try{ renderCuadre(); }catch(e){ console.error('Cuadre', e); }
   try{ renderG3Hoy(); }catch(e){ console.error('G3 hoy', e); }
   try{ renderMetaUnificada(); }catch(e){ console.error('Meta unificada', e); }
 
-  // Proyección adaptativa: parte del bankroll REAL de hoy (no del plan original) y compone
-  // la misma tasa diaria hasta completar el día 31. Si hoy cerraste arriba del plan, la meta
-  // de fin de mes sube sola; si cerraste abajo, baja — se recalcula siempre desde lo real.
+  // Proyección adaptativa: parte de lo que SIGUE en Gambito tras el día, que según la regla del libro es el
+  // MENOR entre el BR final real y el planificado (todo lo que pasa del plan se va a G3 y no vuelve a Gambito).
+  // Antes partía del BR real completo y, con un día fuerte, inflaba la proyección con dinero que ya es de G3.
   const diasRestantes = Math.max(0, 31 - diaActual);
-  const proyeccion31 = bankrollActual * Math.pow(1 + TASA_DIARIA_PLAN, diasRestantes);
-  document.getElementById('proyeccionInfo').innerHTML = `Día actual: <b>${diaActual} / 31</b><br>Tasa diaria planificada: <b>${(TASA_DIARIA_PLAN*100).toFixed(2)}%</b><br>Bankroll real de hoy: <b>$${bankrollActual.toFixed(2)}</b><br>Proyección al día 31: <b>$${proyeccion31.toFixed(2)}</b>`;
+  const baseProy = Math.min(bankrollActual, metaDia);
+  const proyeccion31 = baseProy * Math.pow(1 + TASA_DIARIA_PLAN, diasRestantes);
+  document.getElementById('proyeccionInfo').innerHTML = `Día actual: <b>${diaActual} / 31</b><br>Tasa diaria planificada: <b>${(TASA_DIARIA_PLAN*100).toFixed(2)}%</b><br>BR final real de hoy: <b>$${bankrollActual.toFixed(2)}</b><br>Base que sigue en Gambito: <b>$${baseProy.toFixed(2)}</b>${bankrollActual>metaDia+0.004?` <span style="color:var(--text-mute); font-size:11px;">(el menor entre real y plan; el excedente pasa a G3)</span>`:''}<br>Proyección al día 31: <b>$${proyeccion31.toFixed(2)}</b>`;
+}
+
+function renderHoyCard(base, bankrollActual, metaDia){
+  const cab = document.getElementById('hoyCabecera'); if(!cab) return;
+  const hoy = getHoy();
+  const activo = base.fuente==='hoja';
+  const pend = !activo && activarPend() && activarPend().fecha===hoy;
+  const chip = activo ? '<span style="color:var(--green);">● Día activado en Bitácora</span>'
+             : pend ? '<span style="color:var(--amber);">⏳ Activación guardada, pendiente de enviar</span>'
+             : '<span style="color:var(--amber);">○ Día sin activar</span>';
+  cab.innerHTML = `<b style="font-size:14px;">Hoy · ${hoy}${base.dia?' · Día '+base.dia:''}</b><span style="font-size:11.5px;">${chip}</span>`;
+  const tile = (t, v, c)=>`<div style="background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:8px 6px; text-align:center;"><div style="font-size:9.5px; color:var(--text-mute); text-transform:uppercase; letter-spacing:.05em;">${t}</div><div style="font-size:16px; font-weight:700; color:${c||'var(--text)'};">$${v.toFixed(2)}</div></div>`;
+  document.getElementById('hoyCifras').innerHTML = tile('Arranque', base.inicio) + tile('Stake de hoy', base.stake, 'var(--amber)') + tile('Meta', metaDia);
+  const btn = document.getElementById('btnActivarHoy');
+  if(btn) btn.style.display = (activo || pend) ? 'none' : 'block';
+  const nota = document.getElementById('hoyNota');
+  if(nota){
+    nota.style.color = 'var(--text-mute)';
+    nota.innerHTML = activo ? ''
+      : base.fuente==='proyectada'
+        ? `Cifras <b>proyectadas</b> desde el último dato (el ${base.desde} cerró en $${base.cierreReal.toFixed(2)}${base.cierrePlan!==null?' con plan $'+base.cierrePlan.toFixed(2):''}; arranca el menor). Ya puedes operar con este stake; al activar el día, la hoja toma el control y los P/L de hoy suman a la Bitácora.`
+        : 'Todavía no hay ninguna fila de Bitácora: estas cifras son el respaldo de Config.';
+  }
 }
 
 /* ============ CONFIG ============ */
@@ -3877,7 +4024,7 @@ const FRASE_PREMEDITATIO = 'Planifico para el éxito y me preparo para el fallo:
 document.querySelectorAll('[data-premeditatio]').forEach(el=>{ el.textContent = FRASE_PREMEDITATIO; });
 const L2_MIN_TRIPLE = 15;
 function l2Esc(t){ return String(t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function l2Money(v){ return '$'+(+v).toFixed(2); }
+function l2Money(v){ const n = +v; return (n<0 ? '-' : '') + '$' + Math.abs(n).toFixed(2); }  // -$8.97 (no «$-8.97»)
 function l2Num(v){ return (v===''||v===null||v===undefined||isNaN(+v)) ? null : +v; }
 function l2R2(v){ return Math.round(v*100)/100; }
 function guardarL2Pend(){ try{ localStorage.setItem(L2_PEND_KEY, JSON.stringify(l2Pend)); }catch(e){} }
@@ -4035,7 +4182,7 @@ function renderChequeo(){
     ? (edadH<1 ? 'hace menos de 1 h' : 'hace '+Math.round(edadH)+' h')+(navigator.onLine?'':' (sin conexión)')
     : '';
   const ds = document.getElementById('detMantSum');
-  if(ds) ds.innerHTML = (errs.length ? '<span style="color:var(--red);">⚠ '+errs.length+' error(es) de fecha · </span>' : '') + 'Mantenimiento de Bitácora · verificación, activar día, ajustar valor';
+  if(ds) ds.innerHTML = (errs.length ? '<span style="color:var(--red);">⚠ '+errs.length+' error(es) de fecha · </span>' : '') + 'Mantenimiento de Bitácora · verificación y ajustar valor';
   if(errs.length){
     const e0 = errs[0];
     banner.style.display = 'block';
@@ -4083,7 +4230,9 @@ function renderLinea2(){
     <p style="font-size:12px; line-height:1.7;">
       Saldo G3 vigente: <b>${l2Money(e.vigente)}</b> <span style="color:var(--text-mute);">${e.ultimoCierre?'(cierre del '+e.ultimoCierre+')':'(sin cierres aún)'}</span><br>
       Excedente de días cerrados por pasar: <b>${l2Money(e.firme)}</b><br>
-      Excedente de hoy (provisional, aún no cuenta): <b style="color:var(--text-dim);">${l2Money(e.hoyProv)}</b><br>
+      ${(()=>{ const fh = e.filas.find(f=>f.fecha===getHoy()); const kh = fh ? l2Num(fh['Saldo L2 cierre']) : null;
+        return kh!==null ? `Excedente de hoy: <b style="color:var(--text-dim);">${l2Money(l2Num(fh['Excedente L2'])||0)}</b> <span style="color:var(--text-mute);">(ya incluido en el cierre de hoy)</span>`
+                         : `Excedente de hoy (provisional, aún no cuenta): <b style="color:var(--text-dim);">${l2Money(e.hoyProv)}</b>`; })()}<br>
       Disponible para G3: <b>${l2Money(e.disponible)}</b>
     </p>
     ${pendN>0?`<p style="color:var(--amber); font-size:11.5px;">${pendN} cierre(s) guardado(s) en este dispositivo, pendiente(s) de subir al Sheet.${l2UltimoError?' Último error: '+l2Esc(l2UltimoError):''}</p>`:''}`;
@@ -4093,8 +4242,10 @@ function renderLinea2(){
   const dias = e.filas.slice(-14).reverse();
   const actual = sel.value;
   const hoy = getHoy();
-  sel.innerHTML = dias.map(f=>`<option value="${f.fecha}">Día ${f['Dia']} · ${f.fecha}${f.fecha===hoy?' (hoy)':''}</option>`).join('');
-  const preferido = dias.find(f=>f.fecha===actual) ? actual : (dias.find(f=>f.fecha===hoy) ? hoy : (dias[0]?dias[0].fecha:''));
+  sel.innerHTML = dias.map(f=>`<option value="${f.fecha}">Día ${f['Dia']} · ${f.fecha}${f.fecha===hoy?' (hoy)':''}${l2Num(f['Saldo L2 cierre'])!==null?' ✓ cerrado':''}</option>`).join('');
+  // Por defecto, HOY (o el día más reciente si hoy aún no está en la hoja). Solo se respeta otra elección si la hiciste tú.
+  const porDefecto = (dias.find(f=>f.fecha===hoy) || dias[0] || {}).fecha || '';
+  const preferido = (l2FechaElegida && dias.find(f=>f.fecha===actual)) ? actual : porDefecto;
   sel.value = preferido;
   actualizarBaseL2();
 
@@ -4106,8 +4257,9 @@ function renderLinea2(){
     if(k!==null) prev = k;
     return {f, k, j, res};
   }).slice(-10).reverse();
-  document.getElementById('l2Historial').innerHTML = `<table style="font-size:11.5px;"><thead><tr><th>Día</th><th>Fecha</th><th>Excedente</th><th>Cierre G3</th><th>Resultado all-in</th></tr></thead><tbody>${
-    filasTabla.map(({f,k,j,res})=>`<tr><td>${f['Dia']}</td><td>${f.fecha}</td><td>${j===null?'—':l2Money(j)}</td><td>${k===null?'—':l2Money(k)+(l2Pend[f.fecha]!==undefined?' ⏳':'')}</td><td style="color:${res===null?'inherit':(res>=0?'var(--green)':'var(--red)')};">${res===null?'—':(res>=0?'+':'')+l2Money(res).replace('$-','-$')}</td></tr>`).join('')
+  const th = 'style="padding:6px 6px; letter-spacing:0; white-space:nowrap;"', td = 'style="padding:6px 6px; white-space:nowrap;"';
+  document.getElementById('l2Historial').innerHTML = `<table style="font-size:11px; width:100%;"><thead><tr><th ${th}>Día · fecha</th><th ${th}>Excedente</th><th ${th}>Cierre G3</th><th ${th}>Resultado</th></tr></thead><tbody>${
+    filasTabla.map(({f,k,j,res})=>`<tr><td ${td}>${f['Dia']} · ${f.fecha.slice(5)}</td><td ${td}>${j===null?'—':l2Money(j)}</td><td ${td}>${k===null?'—':l2Money(k)+(l2Pend[f.fecha]!==undefined?' ⏳':'')}</td><td style="padding:6px 6px; white-space:nowrap; color:${res===null?'inherit':(res>=0?'var(--green)':'var(--red)')};">${res===null?'—':(res>=0?'+':'')+l2Money(res)}</td></tr>`).join('')
   }</tbody></table>`;
 }
 function actualizarBaseL2(){
@@ -4130,7 +4282,7 @@ function cuadreCalc(){
   const est = l2Estado();
   const g3 = cierre!==null ? cierre : l2R2(est.disponible + exc); // sin cierre: saldo + excedentes + el de hoy, sin resultado all-in
   const gambito = l2R2(D - exc);
-  return {D, exc, cierre, g3, gambito, total:l2R2(gambito+g3), tieneHoy: baseC.fuente==='hoja', stake:l2R2(bankrollInicio/8), bankrollInicio};
+  return {D, exc, cierre, g3, gambito, total:l2R2(gambito+g3), tieneHoy: baseC.fuente==='hoja', stake:baseC.stake, bankrollInicio};
 }
 function renderCuadre(){
   const out = document.getElementById('cuadreOut'); if(!out) return;
@@ -4158,14 +4310,7 @@ function actualizarCuadreDif(){
   inp.addEventListener('input', ()=>{ try{ localStorage.setItem(CASA_KEY, JSON.stringify({fecha:getHoy(), v:inp.value})); }catch(e){} actualizarCuadreDif(); });
 })();
 const TASA_G3 = 1 / 3; // G3: meta diaria = +33.3% del total con el que arrancas el día (stake = total ÷ 3, ganar 1 stake)
-function g3DiaActual(){
-  const hoy = getHoy();
-  if(bitacoraHoyCache && bitacoraHoyCache.fecha===hoy && bitacoraHoyCache.dia) return +bitacoraHoyCache.dia;
-  const fs = l2Filas().filter(f=>f.fecha<=hoy);
-  if(!fs.length) return 1;
-  const u = fs[fs.length-1];
-  return (+u['Dia']||0) + (u.fecha<hoy ? 1 : 0);
-}
+function g3DiaActual(){ return baseDelDia().dia || 1; }
 function g3Calc(){
   const hoy = getHoy(), e = l2Estado();
   const fila = l2Filas().find(f=>f.fecha===hoy);
@@ -4212,18 +4357,21 @@ function g3InicioHoy(){ // total de G3 con el que arrancas hoy = cierre de ayer 
 }
 function renderMetaUnificada(){
   const el = document.getElementById('metaUnifInfo'); if(!el) return;
-  const hoy = getHoy();
-  const gIni = bankrollInicioHoy(), gMeta = metaDiaObjetivo();
+  const b = baseDelDia();
+  const gIni = b.inicio, gStake = b.stake, gMeta = b.planificado;
   const g3Ok = bitacoraTabla && bitacoraTabla.l2Listo!==false;
   const hIni = g3Ok ? g3InicioHoy() : 0, hMeta = l2R2(hIni*(1+TASA_G3));
+  const hStake = hIni<=0 ? 0 : (hIni>=L2_MIN_TRIPLE ? Math.floor(Math.round(hIni*100)/3)/100 : hIni);
   const ini = l2R2(gIni + hIni), meta = l2R2(gMeta + hMeta);
-  const fila = (n,a,b)=>`<tr><td style="padding:2px 10px 2px 0; color:var(--text-mute);">${n}</td><td style="padding:2px 10px 2px 0;">${l2Money(a)}</td><td style="padding:2px 0;">${l2Money(b)}</td></tr>`;
-  el.innerHTML = `<table style="border-collapse:collapse; font-size:12px;"><thead><tr style="color:var(--text-mute); font-size:10.5px; text-transform:uppercase;"><th style="text-align:left; padding-right:10px; font-weight:500;"></th><th style="text-align:left; padding-right:10px; font-weight:500;">Arranque (cierre de ayer)</th><th style="text-align:left; font-weight:500;">Meta de hoy</th></tr></thead><tbody>
-    ${fila('Gambito', gIni, gMeta)}
-    ${g3Ok ? fila('G3', hIni, hMeta) : '<tr><td colspan="3" style="color:var(--text-mute);">G3: sin copia de la Bitácora con columnas de G3 en este dispositivo.</td></tr>'}
-    <tr style="border-top:1px solid var(--line);"><td style="padding:4px 10px 0 0;"><b>Total</b></td><td style="padding:4px 10px 0 0;"><b>${l2Money(ini)}</b></td><td style="padding:4px 0 0;"><b style="color:var(--amber); font-size:14px;">${l2Money(meta)}</b></td></tr>
+  const td = (v, extra)=>`<td style="padding:3px 8px 3px 0; ${extra||''}">${v}</td>`;
+  const fila = (n,a,st,m)=>`<tr>${td(n,'color:var(--text-mute);')}${td(l2Money(a))}${td(l2Money(st),'color:var(--amber);')}${td(l2Money(m))}</tr>`;
+  const th = (t)=>`<th style="text-align:left; padding-right:8px; font-weight:500; letter-spacing:0;">${t}</th>`;
+  el.innerHTML = `<table style="border-collapse:collapse; font-size:12px;"><thead><tr style="color:var(--text-mute); font-size:10.5px; text-transform:uppercase;">${th('')}${th('Arranque')}${th('Stake')}${th('Meta')}</tr></thead><tbody>
+    ${fila('Gambito', gIni, gStake, gMeta)}
+    ${g3Ok ? fila('G3', hIni, hStake, hMeta) : '<tr><td colspan="4" style="color:var(--text-mute);">G3: sin copia de la Bitácora con columnas de G3 en este dispositivo.</td></tr>'}
+    <tr style="border-top:1px solid var(--line);">${td('<b>Total</b>','padding-top:5px;')}${td('<b>'+l2Money(ini)+'</b>','padding-top:5px;')}${td('','padding-top:5px;')}${td('<b style="color:var(--amber); font-size:14px;">'+l2Money(meta)+'</b>','padding-top:5px;')}</tr>
   </tbody></table>
-  <div style="color:var(--text-mute); font-size:11px; margin-top:6px;">Ganancia a lograr hoy entre las dos líneas: <b style="color:var(--text);">${l2Money(l2R2(meta-ini))}</b> (Gambito ${l2Money(l2R2(gMeta-gIni))} + G3 ${l2Money(l2R2(hMeta-hIni))}).</div>`;
+  <div style="color:var(--text-mute); font-size:11px; margin-top:6px;">Ganancia a lograr hoy entre las dos líneas: <b style="color:var(--text);">${l2Money(l2R2(meta-ini))}</b> (Gambito ${l2Money(l2R2(gMeta-gIni))} + G3 ${l2Money(l2R2(hMeta-hIni))}). Arranque = cierre de ayer; el stake de G3 es el total ÷ 3 desde ${l2Money(L2_MIN_TRIPLE)}, y all-in por debajo.</div>`;
 }
 function renderLinea2Todo(){
   try{ renderMetaUnificada(); }catch(e){ console.error('Meta unificada', e); }
@@ -4233,7 +4381,8 @@ function renderLinea2Todo(){
   try{ renderChequeo(); }catch(e){ console.error('Chequeo', e); }
 }
 
-document.getElementById('l2Fecha').addEventListener('change', actualizarBaseL2);
+let l2FechaElegida = false;
+document.getElementById('l2Fecha').addEventListener('change', ()=>{ l2FechaElegida = true; actualizarBaseL2(); });
 document.getElementById('bitacoraErrBanner').addEventListener('click', ()=>{
   document.querySelector('nav.tabs button[data-tab="metas"]').click();
   const dm = document.getElementById('detMant'); if(dm) dm.open = true;
@@ -4284,7 +4433,7 @@ document.getElementById('btnActualizarHoja').addEventListener('click', async ()=
 });
 
 /* ============ OFFLINE: reconexión, almacenamiento persistente, nueva versión ============ */
-window.addEventListener('online', async ()=>{ await flushOutbox(); await flushL2(); await refreshBitacoraTabla(); await refreshObjetivos(); renderAllSafe(); });   // sube lo registrado sin señal en cuanto vuelve la conexión
+window.addEventListener('online', async ()=>{ await flushOutbox(); await flushActivacion(); await refreshBitacoraHoy(); await flushL2(); await refreshBitacoraTabla(); await refreshObjetivos(); renderAllSafe(); });   // sube lo registrado sin señal en cuanto vuelve la conexión
 window.addEventListener('offline', ()=>{ renderAllSafe(); });
 async function pedirAlmacenamientoPersistente(){
   // Evita que el navegador borre los datos locales (registros + bandeja pendiente) si el teléfono se queda sin espacio.
