@@ -4288,21 +4288,21 @@ function renderLinea2(){
   let prev = 0;
   const filasTabla = e.filas.map(f=>{
     const k = l2Num(f['Saldo L2 cierre']), j = l2Num(f['Excedente L2']);
-    const res = (k!==null) ? l2R2(k - prev - (j||0)) : null;
+    const res = (k!==null) ? l2R2(k - prev) : null;   // el cierre ya incluye el saldo previo y el excedente que pasó de Gambito: no se resta otra vez
     if(k!==null) prev = k;
     return {f, k, j, res};
   }).slice(-10).reverse();
   const th = 'style="padding:6px 6px; letter-spacing:0; white-space:nowrap;"', td = 'style="padding:6px 6px; white-space:nowrap;"';
   document.getElementById('l2Historial').innerHTML = `<table style="font-size:11px; width:100%;"><thead><tr><th ${th}>Día · fecha</th><th ${th}>Excedente</th><th ${th}>Cierre G3</th><th ${th}>Resultado</th></tr></thead><tbody>${
     filasTabla.map(({f,k,j,res})=>`<tr><td ${td}>${f['Dia']} · ${f.fecha.slice(5)}</td><td ${td}>${j===null?'—':l2Money(j)}</td><td ${td}>${k===null?'—':l2Money(k)+(l2Pend[f.fecha]!==undefined?' ⏳':'')}</td><td style="padding:6px 6px; white-space:nowrap; color:${res===null?'inherit':(res>=0?'var(--green)':'var(--red)')};">${res===null?'—':(res>=0?'+':'')+l2Money(res)}</td></tr>`).join('')
-  }</tbody></table>`;
+  }</tbody></table><p style="font-size:10.5px; color:var(--text-mute); margin-top:6px;">Resultado = cierre de G3 − saldo de G3 del día anterior (el cierre ya incluye el excedente que pasó de Gambito).</p>`;
 }
 function actualizarBaseL2(){
   const sel = document.getElementById('l2Fecha'), out = document.getElementById('l2Base');
   if(!sel || !out) return;
   if(!sel.value){ out.textContent = ''; return; }
   const b = l2BaseParaFecha(sel.value);
-  out.textContent = `Si tus all-in de ese día terminaron en tablas, el total sería ${l2Money(b.sinResultado)} (saldo anterior ${l2Money(b.prev)} + excedente ${l2Money(b.exc)}).`;
+  out.textContent = `G3 arrancó ese día con ${l2Money(b.prev)}${b.exc>0?` y el excedente que pasó de Gambito fue ${l2Money(b.exc)}`:''}. Anota el total de G3 al cerrar: ya incluye lo que tenía.`;
 }
 const CASA_KEY = 'gambito_casa_v1';
 function cuadreCalc(){
