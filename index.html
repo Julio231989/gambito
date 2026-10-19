@@ -653,7 +653,11 @@ hoy, sin retroceso, conquistaré la contienda.</p>
         <p id="bankrollInfo"></p>
         <div id="cierreMananaInfo" style="margin-top:10px; border-top:1px solid var(--border, #2a323b); padding-top:10px; font-size:12px; line-height:1.65;"></div>
         <div style="margin-top:10px; border-top:1px solid var(--border, #2a323b); padding-top:10px;">
-          <label for="brFijarValor" style="font-size:11px; color:var(--text-mute);">Fijar el cierre de hoy a mano — BR final real ($)</label>
+          <label for="brFijarValor" style="font-size:11px; color:var(--text-mute);">Fijar el cierre de hoy a mano ($)</label>
+          <div style="font-size:12px; margin-top:4px; display:flex; flex-direction:column; gap:3px;">
+            <label style="display:flex; gap:6px; align-items:flex-start;"><input type="radio" name="brModo" id="brModoTotal" value="total" style="margin-top:3px;"> <span><b>Total de la casa</b> (Gambito + G3: todo lo que tienes). Gambito va primero: se queda con su meta del día (o con todo si no llega) y el resto pasa a G3. La app escribe también el cierre de G3.</span></label>
+            <label style="display:flex; gap:6px; align-items:flex-start;"><input type="radio" name="brModo" id="brModoGambito" value="gambito" style="margin-top:3px;"> <span><b>Solo Gambito</b> (el BR final real tal cual va en la hoja).</span></label>
+          </div>
           <div style="display:flex; gap:8px; margin-top:4px;">
             <input type="text" inputmode="decimal" id="brFijarValor" placeholder="ej. 13.72" style="flex:1; min-width:0;">
             <button type="button" class="btn small" id="btnBrFijar">Fijar</button>
@@ -3504,6 +3508,11 @@ document.getElementById('btnFixBitacora').addEventListener('click', async ()=>{
   btn.disabled = false; btn.textContent = 'Corregir en el Sheet';
 });
 
+(function(){
+  const t = document.getElementById('brModoTotal'), g = document.getElementById('brModoGambito'); if(!t||!g) return;
+  (modoCierre()==='gambito' ? g : t).checked = true;
+  [t,g].forEach(r=>r.addEventListener('change', ()=>{ if(r.checked) modoCierreSet(r.value); }));
+})();
 document.getElementById('btnBrFijar').addEventListener('click', async ()=>{
   const msg = document.getElementById('brFijarMsg');
   const mostrar = (ok, t)=>{ msg.style.display='block'; msg.style.color = ok?'var(--green)':'var(--red)'; msg.textContent = t; };
@@ -3514,18 +3523,24 @@ document.getElementById('btnBrFijar').addEventListener('click', async ()=>{
   if(!ENDPOINT){ mostrar(false, 'No hay URL del Web App configurada — usa "Servidor / Sheet" primero.'); return; }
   if(!navigator.onLine){ mostrar(false, 'Sin conexión: fijar el cierre escribe en el Sheet. Inténtalo cuando haya señal.'); return; }
   if(!bitacoraHoyCache || bitacoraHoyCache.fecha!==getHoy()){ mostrar(false, 'Hoy no está activado en Bitácora: usa «Activar hoy en Bitácora» (tarjeta de arriba) primero.'); return; }
-  const dc = describirCierre(valor);
-  if(!confirm(`Fijar el BR final real de hoy en $${valor.toFixed(2)}?\n\n${dc.titulo}\n• ${dc.lineas.join('\n• ')}\n\nEl Sheet dejará de calcular esa celda por el resto del día.`)) return;
+  const prio = modoCierre()==='total' && hayG3Hoja();
+  const dc = describirCierre(valor, prio);
+  if(!confirm(`Fijar el BR final real de hoy en $${valor.toFixed(2)}${prio?' (total de la casa)':''}?\n\n${dc.titulo}\n• ${dc.lineas.join('\n• ')}\n\nEl Sheet dejará de calcular esa celda por el resto del día.${prio?' También se escribirá el cierre de G3.':''}`)) return;
   const btn = document.getElementById('btnBrFijar');
   btn.disabled = true; btn.textContent = 'Fijando…';
   try{
     const res = await apiPost({action:'bitacora_set', fecha:getHoy(), campo:'BR final real', valor});
     if(res && res.ok){
       brManualSet(getHoy(), valor);
+      let g3msg = '';
+      if(prio){
+        const r2 = await apiPost({action:'bitacora_set', fecha:getHoy(), campo:'Saldo L2 cierre', valor:dc.g3.total});
+        if(!(r2 && r2.ok)) g3msg = ` ATENCIÓN: el BR de Gambito quedó fijado, pero no se pudo escribir el cierre de G3 (${(r2&&r2.error)||'error desconocido'}). Anótalo en «Día a cerrar» de G3: $${dc.g3.total.toFixed(2)}.`;
+      }
       await refreshBitacoraHoy(); await refreshBitacoraTabla();
       renderMetas(); renderLinea2Todo();
       document.getElementById('brFijarValor').value = '';
-      mostrar(true, `Cierre de hoy fijado en $${valor.toFixed(2)}. ${dc.lineas.slice(0,2).join(' ')}`);
+      mostrar(!g3msg, `Cierre de hoy fijado en $${valor.toFixed(2)}. ${dc.lineas.slice(0,2).join(' ')}${g3msg}`);
     } else {
       mostrar(false, 'No se pudo fijar: '+(res&&res.error?res.error:'error desconocido'));
     }
@@ -3566,9 +3581,29 @@ function g3Manana(excHoy){
   if(kh!==null) return {total:kh, conCierre:true};
   return {total:l2R2(e.disponible + excHoy), conCierre:false, actual:e.disponible};
 }
-function describirCierre(real){
+const MODO_CIERRE_KEY = 'gambito_modo_cierre_v1';
+function modoCierre(){ try{ return localStorage.getItem(MODO_CIERRE_KEY)==='gambito' ? 'gambito' : 'total'; }catch(e){ return 'total'; } }
+function modoCierreSet(m){ try{ localStorage.setItem(MODO_CIERRE_KEY, m); }catch(e){} }
+const hayG3Hoja = ()=> !!(bitacoraTabla && bitacoraTabla.l2Listo!==false);
+function describirCierre(real, prioridad){
   const b = baseDelDia();
   const r = reglaCierre(real, b.planificado, b.inicio);
+  if(prioridad){ // el valor es el TOTAL de la casa: Gambito primero, el resto a G3
+    const $ = (v)=>'$'+Math.abs(v).toFixed(2);
+    const g3t = r.exc;                                  // = total − plan si lo supera; si no, 0
+    const lineas = [];
+    if(real<=0){
+      lineas.push('Sin saldo: ni Gambito ni G3 tienen fondos para mañana.');
+    } else if(r.exc>0){
+      lineas.push(`Gambito se queda con su meta de hoy: ${$(r.sigue)} (stake ${$(r.stakeManana)} · meta ${$(r.metaManana)}).`);
+      lineas.push(`Todo el resto, ${$(g3t)}, pasa a G3.`);
+    } else {
+      lineas.push(`El total no alcanza la meta de Gambito (${$(b.planificado)}): todo va a Gambito, ${$(r.sigue)} (stake ${$(r.stakeManana)} · meta ${$(r.metaManana)}).`);
+      lineas.push('G3 queda en $0.00 hasta que lo repongas.');
+    }
+    lineas.push(`G3 mañana: ${$(g3t)}. Comprobación: Gambito ${$(r.sigue)} + G3 ${$(g3t)} = ${$(r.sigue+g3t)}.`);
+    return {r, g3:{total:g3t, conCierre:true}, titulo:`Total de la casa en ${$(real)}`, lineas};
+  }
   const hayG3 = bitacoraTabla && bitacoraTabla.l2Listo!==false;
   const g3 = hayG3 ? g3Manana(r.exc) : null;
   const $ = (v)=>'$'+Math.abs(v).toFixed(2);
@@ -3602,7 +3637,7 @@ function describirCierre(real){
 function renderCierreManana(base, real, manual){
   const el = document.getElementById('cierreMananaInfo'); if(!el) return;
   if(base.fuente!=='hoja' || real===null){ el.innerHTML = '<span style="color:var(--text-mute);">Cuando el día esté activado verás aquí qué pasa al cerrarlo: cuánto queda en Gambito, cuánto pasa a G3 y con cuánto arranca mañana.</span>'; return; }
-  const d = describirCierre(real);
+  const d = describirCierre(real, !!manual && modoCierre()==='total' && hayG3Hoja());
   const color = {'sobre-plan':'var(--green)','ganancia-parcial':'var(--green)','perdida':'var(--red)','sin-saldo':'var(--red)'}[d.r.tipo] || 'var(--text-dim)';
   el.innerHTML = `<div style="font-size:10.5px; color:var(--text-mute); text-transform:uppercase; letter-spacing:.06em;">Cierre de hoy → mañana ${manual?'(cierre fijado a mano)':'(si cierras con el BR final real actual)'}</div>
     <div style="color:${color}; font-weight:600; margin:2px 0 4px;">${escaparHTML(d.titulo)}</div>
